@@ -11,9 +11,14 @@ router.get('/', async (req: Request, res: Response) => {
       include: { company: true }
     })
     res.json(workers)
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener trabajadores' })
-  }
+  } catch (error: any) {
+  console.error('ERROR PRISMA:', error)
+  res.status(500).json({ 
+    error: error.message || 'unknown',
+    code: error.code || 'unknown',
+    meta: error.meta || 'unknown'
+  })
+}
 })
 
 // GET trabajador por ID
@@ -36,14 +41,10 @@ router.get('/:id', async (req: Request, res: Response) => {
       return
     }
     res.json(worker)
-  } catch (error: any) {
-  console.error('ERROR PRISMA:', error)
-  res.status(500).json({ 
-    error: error.message || 'unknown',
-    code: error.code || 'unknown',
-    meta: error.meta || 'unknown'
-  })
-}
+  } catch (error) {
+    console.error('ERROR GET workers:', error)
+    res.status(500).json({ error: String(error) })
+  }
 })
 
 // POST crear trabajador
