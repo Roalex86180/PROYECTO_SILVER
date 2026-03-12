@@ -27,7 +27,7 @@ app.get('/health', (_req: Request, res: Response) => {
 })
 
 // servir frontend
-const frontendPath = path.join(process.cwd(), 'frontend/dist')
+const frontendPath = path.join(process.cwd(), '../frontend/dist')
 
 app.use(express.static(frontendPath))
 
