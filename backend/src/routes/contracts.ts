@@ -17,6 +17,7 @@ router.get('/', async (req: Request, res: Response) => {
     })
     res.json(contracts)
   } catch (error) {
+    console.error('ERROR GET contracts:', error)
     res.status(500).json({ error: 'Error al obtener contratos' })
   }
 })

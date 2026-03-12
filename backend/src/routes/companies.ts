@@ -29,6 +29,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     })
     if (!company) {
+      
       res.status(404).json({ error: 'Empresa no encontrada' })
       return
     }
