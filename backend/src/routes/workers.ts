@@ -36,10 +36,14 @@ router.get('/:id', async (req: Request, res: Response) => {
       return
     }
     res.json(worker)
-  } catch (error) {
-    console.error('ERROR PRISMA:', JSON.stringify(error, null, 2))
-    res.status(500).json({ error: String(error) })
-  }
+  } catch (error: any) {
+  console.error('ERROR PRISMA:', error)
+  res.status(500).json({ 
+    error: error.message || 'unknown',
+    code: error.code || 'unknown',
+    meta: error.meta || 'unknown'
+  })
+}
 })
 
 // POST crear trabajador
