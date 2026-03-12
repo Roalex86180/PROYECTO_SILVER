@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id            String   @id @default(uuid())
+  name          String
+  ein           String   @unique
+  contactPerson String?  @map("contact_person")
+  phone         String?
+  email         String?
+  address       String?
+  state         String?
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  workers   Worker[]
+  contracts Contract[]
+
+  @@map("companies")
+}
+
+model Worker {
+  id                String   @id @default(uuid())
+  name              String
+  ssn               String   @unique
+  ein               String?
+  phone             String?
+  email             String?
+  address           String?
+  state             String?
+  workAuthorization String   @map("work_authorization")
+  role              String
+  type              String
+  companyId         String?  @map("company_id")
+  emergencyContact  String?  @map("emergency_contact")
+  emergencyPhone    String?  @map("emergency_phone")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  company   Company?   @relation(fields: [companyId], references: [id])
+  contracts Contract[]
+
+  @@map("workers")
+}
+
+model Project {
+  id            String    @id @default(uuid())
+  name          String
+  location      String?
+  status        String    @default("active")
+  description   String?
+  clientContact String?   @map("client_contact")
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  budget        Decimal?  @db.Decimal(12, 2)
+  progress      Int?      @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  contracts Contract[]
+
+  @@map("projects")
+}
+
+model Contract {
+  id          String   @id @default(uuid())
+  workerId    String?  @map("worker_id")
+  companyId   String?  @map("company_id")
+  projectId   String   @map("project_id")
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  paymentType String   @map("payment_type")
+  value       Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  worker   Worker?   @relation(fields: [workerId], references: [id])
+  company  Company?  @relation(fields: [companyId], references: [id])
+  project  Project   @relation(fields: [projectId], references: [id])
+  payments Payment[]
+
+  @@map("contracts")
+}
+
+model Payment {
+  id         String   @id @default(uuid())
+  contractId String   @map("contract_id")
+  concept    String
+  amount     Decimal  @db.Decimal(12, 2)
+  date       DateTime @db.Date
+  method     String
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  contract Contract @relation(fields: [contractId], references: [id])
+
+  @@map("payments")
+}
