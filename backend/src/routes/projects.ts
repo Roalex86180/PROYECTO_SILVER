@@ -121,6 +121,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json(shapeProject(project))
   } catch (error) {
+    console.error('ERROR GET workers:', error)
     res.status(500).json({ error: 'Error al obtener proyecto' })
   }
 })
@@ -146,6 +147,7 @@ router.post('/', async (req: Request, res: Response) => {
     })
     res.status(201).json(project)
   } catch (error) {
+    console.error('ERROR GET workers:', error)
     res.status(500).json({ error: 'Error al crear proyecto' })
   }
 })

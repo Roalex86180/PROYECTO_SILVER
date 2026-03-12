@@ -76,6 +76,7 @@ router.post('/', async (req: Request, res: Response) => {
     })
     res.status(201).json(contract)
   } catch (error) {
+    console.error('ERROR GET workers:', error)
     res.status(500).json({ error: 'Error al crear contrato' })
   }
 })
