@@ -1,21 +1,21 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { FolderKanban, Users, Building2, ChevronLeft, ChevronRight, LogOut, KeyRound, X } from 'lucide-react'
+import { FolderKanban, Users, Building2, ChevronLeft, ChevronRight, LogOut, KeyRound, X, Menu } from 'lucide-react'
 import clsx from 'clsx'
 import { authService } from '../services/authService'
 import api from '../services/api'
 
 const NAV = [
-  { to: '/projects', label: 'Projects',        icon: FolderKanban },
-  { to: '/hr',       label: 'Human Resources', icon: Users },
+  { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/hr', label: 'Human Resources', icon: Users },
 ]
 
 // ─── Change Password Modal ────────────────────────────────────────────────────
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ current: '', next: '', confirm: '' })
-  const [error,   setError]   = useState('')
+  const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [saving,  setSaving]  = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const set = (k: string, v: string) => { setForm(p => ({ ...p, [k]: v })); setError('') }
 
@@ -38,7 +38,6 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -50,8 +49,6 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             <X size={16} />
           </button>
         </div>
-
-        {/* Body */}
         <div className="px-6 py-5 space-y-3">
           {success ? (
             <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg text-center">
@@ -81,8 +78,6 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             </>
           )}
         </div>
-
-        {/* Footer */}
         {!success && (
           <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
             <button onClick={onClose}
@@ -102,8 +97,9 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 
 // ─── Main Layout ──────────────────────────────────────────────────────────────
 export default function Layout() {
-  const [collapsed,        setCollapsed]        = useState(false)
-  const [showChangePass,   setShowChangePass]   = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [showChangePass, setShowChangePass] = useState(false)
   const navigate = useNavigate()
   const user = authService.getUser()
 
@@ -112,13 +108,26 @@ export default function Layout() {
     navigate('/login')
   }
 
+  const closeMobile = () => setMobileOpen(false)
+
   return (
     <div className="flex h-screen bg-gray-100 text-gray-900">
 
-      {/* SIDEBAR */}
+      {/* ── Mobile overlay ── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={closeMobile}
+        />
+      )}
+
+      {/* ── SIDEBAR ── */}
       <aside className={clsx(
-        'relative flex flex-col transition-all duration-300 ease-in-out',
+        'fixed md:relative z-40 flex flex-col transition-all duration-300 ease-in-out h-full',
         'bg-blue-950',
+        // Mobile: slide in/out
+        mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        // Desktop: collapse
         collapsed ? 'w-16' : 'w-60'
       )}>
 
@@ -147,6 +156,7 @@ export default function Layout() {
           )}
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} title={collapsed ? label : ''}
+              onClick={closeMobile}
               className={({ isActive }) => clsx(
                 'flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
                 collapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5',
@@ -167,35 +177,43 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Toggle button */}
+        {/* Toggle button — desktop only */}
         <button onClick={() => setCollapsed(v => !v)}
-          className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all z-10">
+          className="hidden md:flex absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all z-10">
           {collapsed ? <ChevronRight size={12} className="text-blue-600" /> : <ChevronLeft size={12} className="text-blue-600" />}
         </button>
       </aside>
 
-      {/* RIGHT SIDE */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* ── RIGHT SIDE ── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* TOPBAR */}
-        <header className="h-16 shrink-0 flex items-center justify-between px-6"
+        <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6"
           style={{
             background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)',
             boxShadow: '0 1px 12px rgba(30,64,175,0.25)'
           }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setMobileOpen(v => !v)}
+              className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-blue-200 hover:bg-white/10 transition-all"
+            >
+              <Menu size={18} />
+            </button>
+
+            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 items-center justify-center hidden md:flex">
               <Building2 size={15} className="text-blue-200" />
             </div>
             <div>
               <p className="text-sm font-bold text-white leading-none tracking-wide">Silver Star Logistic</p>
-              <p className="text-[11px] text-blue-300 mt-0.5 tracking-wider uppercase">Management System</p>
+              <p className="text-[11px] text-blue-300 mt-0.5 tracking-wider uppercase hidden md:block">Management System</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="text-right hidden md:block">
               <p className="text-xs font-semibold text-white">{user?.name || 'Admin'}</p>
               <p className="text-[11px] text-blue-300">Administrator</p>
             </div>
@@ -214,7 +232,7 @@ export default function Layout() {
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>
