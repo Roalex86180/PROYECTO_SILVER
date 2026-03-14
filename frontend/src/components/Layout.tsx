@@ -1,20 +1,121 @@
 import { useState } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
-import { FolderKanban, Users, Building2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { FolderKanban, Users, Building2, ChevronLeft, ChevronRight, LogOut, KeyRound, X } from 'lucide-react'
 import clsx from 'clsx'
+import { authService } from '../services/authService'
+import api from '../services/api'
 
 const NAV = [
   { to: '/projects', label: 'Projects',        icon: FolderKanban },
   { to: '/hr',       label: 'Human Resources', icon: Users },
 ]
 
+// ─── Change Password Modal ────────────────────────────────────────────────────
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' })
+  const [error,   setError]   = useState('')
+  const [success, setSuccess] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+
+  const set = (k: string, v: string) => { setForm(p => ({ ...p, [k]: v })); setError('') }
+
+  const handleSave = async () => {
+    if (!form.current || !form.next || !form.confirm) { setError('All fields are required'); return }
+    if (form.next.length < 6) { setError('New password must be at least 6 characters'); return }
+    if (form.next !== form.confirm) { setError('Passwords do not match'); return }
+    setSaving(true)
+    try {
+      await api.put('/auth/change-password', { currentPassword: form.current, newPassword: form.next })
+      setSuccess(true)
+      setTimeout(onClose, 1500)
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Error changing password')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+              <KeyRound size={16} className="text-blue-600" />
+            </div>
+            <h2 className="text-sm font-bold text-gray-900">Change Password</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-3">
+          {success ? (
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg text-center">
+              ✅ Password changed successfully
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Current Password</label>
+                <input type="password" placeholder="••••••••"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.current} onChange={e => set('current', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">New Password</label>
+                <input type="password" placeholder="••••••••"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.next} onChange={e => set('next', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Confirm New Password</label>
+                <input type="password" placeholder="••••••••"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.confirm} onChange={e => set('confirm', e.target.value)} />
+              </div>
+              {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">{error}</div>}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!success && (
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+            <button onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              {saving ? 'Saving...' : 'Save Password'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Layout ──────────────────────────────────────────────────────────────
 export default function Layout() {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed,        setCollapsed]        = useState(false)
+  const [showChangePass,   setShowChangePass]   = useState(false)
+  const navigate = useNavigate()
+  const user = authService.getUser()
+
+  const handleLogout = () => {
+    authService.logout()
+    navigate('/login')
+  }
 
   return (
     <div className="flex h-screen bg-gray-100 text-gray-900">
 
-      {/* SIDEBAR — unchanged */}
+      {/* SIDEBAR */}
       <aside className={clsx(
         'relative flex flex-col transition-all duration-300 ease-in-out',
         'bg-blue-950',
@@ -45,16 +146,11 @@ export default function Layout() {
             </p>
           )}
           {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              title={collapsed ? label : ''}
+            <NavLink key={to} to={to} title={collapsed ? label : ''}
               className={({ isActive }) => clsx(
                 'flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
                 collapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5',
-                isActive
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-blue-200 hover:bg-blue-900 hover:text-white'
+                isActive ? 'bg-blue-500 text-white shadow-sm' : 'text-blue-200 hover:bg-blue-900 hover:text-white'
               )}
             >
               <Icon size={18} className="shrink-0" />
@@ -72,29 +168,22 @@ export default function Layout() {
         )}
 
         {/* Toggle button */}
-        <button
-          onClick={() => setCollapsed(v => !v)}
-          className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all z-10"
-        >
-          {collapsed
-            ? <ChevronRight size={12} className="text-blue-600" />
-            : <ChevronLeft size={12} className="text-blue-600" />
-          }
+        <button onClick={() => setCollapsed(v => !v)}
+          className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all z-10">
+          {collapsed ? <ChevronRight size={12} className="text-blue-600" /> : <ChevronLeft size={12} className="text-blue-600" />}
         </button>
-
       </aside>
 
       {/* RIGHT SIDE */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* TOPBAR — refined */}
+        {/* TOPBAR */}
         <header className="h-16 shrink-0 flex items-center justify-between px-6"
           style={{
             background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)',
             boxShadow: '0 1px 12px rgba(30,64,175,0.25)'
           }}
         >
-          {/* Left: branding */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
               <Building2 size={15} className="text-blue-200" />
@@ -105,15 +194,22 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* Right: user */}
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-xs font-semibold text-white">Admin</p>
+              <p className="text-xs font-semibold text-white">{user?.name || 'Admin'}</p>
               <p className="text-[11px] text-blue-300">Administrator</p>
             </div>
             <div className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-white text-xs font-bold">
-              A
+              {user?.name?.[0]?.toUpperCase() || 'A'}
             </div>
+            <button onClick={() => setShowChangePass(true)} title="Change password"
+              className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-blue-200 hover:bg-white/20 hover:text-white transition-all">
+              <KeyRound size={14} />
+            </button>
+            <button onClick={handleLogout} title="Sign out"
+              className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-blue-200 hover:bg-red-500/30 hover:text-white hover:border-red-400/50 transition-all">
+              <LogOut size={14} />
+            </button>
           </div>
         </header>
 
@@ -121,8 +217,10 @@ export default function Layout() {
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
-
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePass && <ChangePasswordModal onClose={() => setShowChangePass(false)} />}
     </div>
   )
 }

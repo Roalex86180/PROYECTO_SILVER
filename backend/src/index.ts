@@ -3,26 +3,30 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
 
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config()
-}
+dotenv.config()
 
 import workersRouter   from './routes/workers'
 import companiesRouter from './routes/companies'
 import contractsRouter from './routes/contracts'
 import paymentsRouter  from './routes/payments'
 import projectsRouter  from './routes/projects'
+import authRouter      from './routes/auth'
+import { authMiddleware } from './middleware/authMiddleware'
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
 
-app.use('/api/workers',   workersRouter)
-app.use('/api/companies', companiesRouter)
-app.use('/api/contracts', contractsRouter)
-app.use('/api/payments',  paymentsRouter)
-app.use('/api/projects',  projectsRouter)
+// Rutas públicas
+app.use('/api/auth', authRouter)
+
+// Rutas protegidas
+app.use('/api/workers',   authMiddleware, workersRouter)
+app.use('/api/companies', authMiddleware, companiesRouter)
+app.use('/api/contracts', authMiddleware, contractsRouter)
+app.use('/api/payments',  authMiddleware, paymentsRouter)
+app.use('/api/projects',  authMiddleware, projectsRouter)
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Silver Star API running' })

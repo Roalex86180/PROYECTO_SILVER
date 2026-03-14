@@ -99,4 +99,16 @@ model Payment {
   contract Contract @relation(fields: [contractId], references: [id])
 
   @@map("payments")
+
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
 }
