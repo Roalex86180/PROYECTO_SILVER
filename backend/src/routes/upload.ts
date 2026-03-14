@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { createClient } from '@supabase/supabase-js'
 import multer from 'multer'
 import sharp from 'sharp'
+import prisma from '../utils/prisma'
 
 const router = Router()
 
@@ -10,10 +11,15 @@ const upload = multer({
     limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
         const allowed = [
-            'image/jpeg', 'image/png', 'image/webp',
-            'image/heic', 'image/heif', 'image/tiff',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/heic',
+            'image/heif',
+            'image/tiff',
             'application/pdf'
         ]
+
         if (allowed.includes(file.mimetype)) {
             cb(null, true)
         } else {
@@ -29,6 +35,13 @@ router.post('/receipt', upload.single('file'), async (req: Request, res: Respons
             return
         }
 
+        const { paymentId } = req.body
+
+        if (!paymentId) {
+            res.status(400).json({ error: 'paymentId is required' })
+            return
+        }
+
         const supabase = createClient(
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_KEY!
@@ -38,23 +51,26 @@ router.post('/receipt', upload.single('file'), async (req: Request, res: Respons
         let contentType = req.file.mimetype
         let fileName = ''
 
+        // PDF
         if (contentType === 'application/pdf') {
-            // PDF — upload as-is
-            fileName = `receipt_${Date.now()}.pdf`
-        } else {
-            // All images — convert to JPG and compress
+            fileName = `receipt_${paymentId}_${Date.now()}.pdf`
+        }
+        // Images
+        else {
             fileBuffer = await sharp(req.file.buffer)
-                .rotate()                    // auto-rotate based on EXIF
-                .resize(1800, 1800, {        // max 1800px on either side
+                .rotate()
+                .resize(1800, 1800, {
                     fit: 'inside',
                     withoutEnlargement: true
                 })
-                .jpeg({ quality: 75 })       // compress to 75% quality JPG
+                .jpeg({ quality: 75 })
                 .toBuffer()
+
             contentType = 'image/jpeg'
-            fileName = `receipt_${Date.now()}.jpg`
+            fileName = `receipt_${paymentId}_${Date.now()}.jpg`
         }
 
+        // Upload to Supabase
         const { error } = await supabase.storage
             .from('receipts')
             .upload(fileName, fileBuffer, {
@@ -68,8 +84,23 @@ router.post('/receipt', upload.single('file'), async (req: Request, res: Respons
             return
         }
 
-        const { data } = supabase.storage.from('receipts').getPublicUrl(fileName)
-        res.json({ url: data.publicUrl })
+        // Get public URL
+        const { data } = supabase.storage
+            .from('receipts')
+            .getPublicUrl(fileName)
+
+        const publicUrl = data.publicUrl
+
+        // 🔴 GUARDAR URL EN LA BASE DE DATOS
+        await prisma.payment.update({
+            where: { id: paymentId },
+            data: {
+                receiptUrl: publicUrl
+            }
+        })
+
+        res.json({ url: publicUrl })
+
     } catch (err) {
         console.error('ERROR UPLOAD:', err)
         res.status(500).json({ error: 'Error uploading file' })
