@@ -23,7 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
 // POST registrar pago
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { contractId, concept, amount, date, method, notes } = req.body
+    const { contractId, concept, amount, date, method, notes, receiptUrl } = req.body
 
     if (!contractId || !concept || !amount || !date || !method) {
       res.status(400).json({ error: 'Contrato, concepto, monto, fecha y método son requeridos' })
@@ -37,7 +37,8 @@ router.post('/', async (req: Request, res: Response) => {
         amount,
         date: new Date(date),
         method,
-        notes
+        notes,
+        receiptUrl: receiptUrl || null
       },
       include: {
         contract: {
@@ -50,5 +51,4 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al registrar pago' })
   }
 })
-
 export default router

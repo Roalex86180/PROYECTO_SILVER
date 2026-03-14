@@ -95,6 +95,7 @@ model Payment {
   method     String
   notes      String?
   createdAt  DateTime @default(now()) @map("created_at")
+  receiptUrl String?  @map("receipt_url")
 
   contract Contract @relation(fields: [contractId], references: [id])
 

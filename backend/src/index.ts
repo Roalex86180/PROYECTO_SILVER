@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
+import uploadRouter from './routes/upload'
 
 dotenv.config()
 
@@ -27,6 +28,7 @@ app.use('/api/companies', authMiddleware, companiesRouter)
 app.use('/api/contracts', authMiddleware, contractsRouter)
 app.use('/api/payments',  authMiddleware, paymentsRouter)
 app.use('/api/projects',  authMiddleware, projectsRouter)
+app.use('/api/uploads', authMiddleware, uploadRouter)
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Silver Star API running' })

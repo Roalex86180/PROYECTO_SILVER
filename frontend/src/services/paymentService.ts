@@ -8,6 +8,7 @@ export type Payment = {
   date: string
   method: string
   notes?: string
+  receiptUrl?: string
   createdAt: string
 }
 
