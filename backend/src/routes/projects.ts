@@ -43,6 +43,7 @@ function shapeProject(p: any) {
           id: pay.id, date: pay.date,
           amount: Number(pay.amount),
           concept: pay.concept, method: pay.method, notes: pay.notes,
+          receiptUrl: pay.receiptUrl ?? null,
         })),
       })
     }
@@ -67,6 +68,7 @@ function shapeProject(p: any) {
         id: pay.id, date: pay.date,
         amount: Number(pay.amount),
         concept: pay.concept, method: pay.method, notes: pay.notes,
+        receiptUrl: pay.receiptUrl ?? null,
       })),
     }))
 

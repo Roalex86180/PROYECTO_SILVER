@@ -303,7 +303,8 @@ export function exportProjectExcel(project: ProjectExportData) {
             i === 0 ? (m.position ?? '—') : '',
             i === 0 ? fmtMoney(m.value ?? 0) : '',
             i === 0 ? (m.paymentType ?? '—') : '',
-            '', '',
+            i === 0 ? fmtD((m as any).startDate) : '',
+            i === 0 ? fmtD((m as any).endDate) : '',
             p.concept, fmtMoney(p.amount), fmtD(p.date), p.method,
             makeLink(p.receiptUrl)
           ])
