@@ -131,6 +131,9 @@ export function getMonthRanges(year: number): Record<string, DateRange> {
 export function exportWorkersExcel(workers: WorkerDetail[], range: DateRange) {
   const wb = XLSX.utils.book_new()
 
+  const fmtMoney = (n?: number | null) =>
+    (n != null) ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'
+
   const rows: any[][] = [
     ['Worker Name', 'Role', 'Project', 'Contract Value', 'Payment Concept', 'Amount', 'Date', 'Method', 'Receipt']
   ]
@@ -154,8 +157,8 @@ export function exportWorkersExcel(workers: WorkerDetail[], range: DateRange) {
           rows.push([
             prettyName, worker.role,
             contract.project?.name || 'N/A',
-            Number(contract.value || 0),
-            p.concept, Number(p.amount || 0), pDateStr, p.method || 'N/A',
+            fmtMoney(Number(contract.value) || 0),
+            p.concept, fmtMoney(Number(p.amount) || 0), pDateStr, p.method || 'N/A',
             makeLink(p.receiptUrl)
           ])
         }
@@ -243,7 +246,7 @@ export function exportProjectExcel(project: ProjectExportData) {
       if (companyPayments.length === 0) {
         companyRows.push([
           formatName(c.name), c.ein ?? '—', c.contactPerson ?? '—',
-          Number(c.value ?? 0), c.paymentType ?? '—',
+          fmtMoney(c.value ?? 0), c.paymentType ?? '—',
           fmtD(c.startDate), fmtD(c.endDate),
           '(No payments yet)', 0, '—', '—', '—'
         ])
@@ -253,11 +256,11 @@ export function exportProjectExcel(project: ProjectExportData) {
             i === 0 ? formatName(c.name) : '',
             i === 0 ? (c.ein ?? '—') : '',
             i === 0 ? (c.contactPerson ?? '—') : '',
-            i === 0 ? Number(c.value ?? 0) : '',
+            i === 0 ? fmtMoney(c.value ?? 0) : '',
             i === 0 ? (c.paymentType ?? '—') : '',
             i === 0 ? fmtD(c.startDate) : '',
             i === 0 ? fmtD(c.endDate) : '',
-            p.concept, Number(p.amount), fmtD(p.date), p.method,
+            p.concept, fmtMoney(p.amount), fmtD(p.date), p.method,
             makeLink(p.receiptUrl)
           ])
         })
@@ -298,10 +301,10 @@ export function exportProjectExcel(project: ProjectExportData) {
             i === 0 ? formatName(m.name) : '',
             i === 0 ? m.role : '',
             i === 0 ? (m.position ?? '—') : '',
-            i === 0 ? Number(m.value ?? 0) : '',
+            i === 0 ? fmtMoney(m.value ?? 0) : '',
             i === 0 ? (m.paymentType ?? '—') : '',
             '', '',
-            p.concept, Number(p.amount), fmtD(p.date), p.method,
+            p.concept, fmtMoney(p.amount), fmtD(p.date), p.method,
             makeLink(p.receiptUrl)
           ])
         })
@@ -348,6 +351,10 @@ type CompanyDetail = {
 export function exportCompaniesExcel(companies: CompanyDetail[], range: DateRange) {
   const wb = XLSX.utils.book_new()
 
+  const fmtMoney = (n?: number | null) =>
+    (n != null) ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'
+
+
   const rows: any[][] = [
     ['Company Name', 'EIN', 'Contact', 'Project', 'Contract Value', 'Payment Concept', 'Amount', 'Date', 'Method', 'Receipt']
   ]
@@ -372,9 +379,9 @@ export function exportCompaniesExcel(companies: CompanyDetail[], range: DateRang
             company.ein,
             company.contactPerson ?? '—',
             contract.project?.name || 'N/A',
-            Number(contract.value || 0),
+            fmtMoney(Number(contract.value) || 0),
             p.concept,
-            Number(p.amount || 0),
+            fmtMoney(Number(p.amount) || 0),
             pDateStr,
             p.method || 'N/A',
             makeLink(p.receiptUrl)
