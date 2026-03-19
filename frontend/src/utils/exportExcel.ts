@@ -264,7 +264,7 @@ export function exportProjectExcel(project: ProjectExportData) {
             makeLink(p.receiptUrl)
           ])
         })
-        companyRows.push(['', '', '', '', '', '', '', 'SUBTOTAL', companyTotal, '', '', ''])
+        companyRows.push(['', '', '', '', '', '', '', 'SUBTOTAL', fmtMoney(companyTotal), '', '', ''])
         companyRows.push([])
       }
     })
@@ -309,7 +309,7 @@ export function exportProjectExcel(project: ProjectExportData) {
             makeLink(p.receiptUrl)
           ])
         })
-        workerRows.push(['', '', '', '', '', '', '', 'SUBTOTAL', workerTotal, '', '', ''])
+        workerRows.push(['', '', '', '', '', '', '', 'SUBTOTAL', fmtMoney(workerTotal), '', '', ''])
         workerRows.push([])
       }
     })
