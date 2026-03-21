@@ -126,15 +126,15 @@ export default function Layout() {
         collapsed ? 'w-16' : 'w-60'
       )}>
 
-        {/* Logo */}
         <div className={clsx(
           'h-16 flex items-center border-b border-blue-900 overflow-hidden transition-all duration-300',
           collapsed ? 'justify-center' : 'gap-3 px-5'
         )}>
-          <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
-            <img src="/icon-192.png" alt={APP_CONFIG.name} className="w-full h-full object-cover" />
-          </div>
-          {!collapsed && (
+          {collapsed ? (
+            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
+              <span className="text-white text-xs font-bold">SSL</span>
+            </div>
+          ) : (
             <div>
               <p className="text-sm font-bold text-white leading-none">{APP_CONFIG.name.split(' ').slice(0, 2).join(' ')}</p>
               <p className="text-xs text-blue-300 mt-0.5">{APP_CONFIG.name.split(' ').slice(2).join(' ')}</p>
