@@ -8,6 +8,7 @@ import Button from '../../../components/ui/Button'
 import FormField from '../../../components/ui/FormField'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
+import { APP_CONFIG } from '../../../config'
 
 type Props = {
     worker: WorkerDetail
@@ -78,7 +79,7 @@ export default function EditWorkerModal({ worker, companies, onClose, onSaved }:
     }
 
     const companyOptions = [
-        { value: '', label: 'None (Silver Star direct employee)' },
+        { value: '', label: `None (${APP_CONFIG.name} direct employee)` },
         ...companies.map(c => ({ value: c.id, label: `${c.name} (EIN: ${c.ein})` })),
     ]
 

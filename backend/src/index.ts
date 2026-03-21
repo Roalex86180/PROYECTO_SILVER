@@ -3,6 +3,9 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
 import uploadRouter from './routes/upload'
+import routesRouter from './routes/routes'
+import localsRouter from './routes/locals'
+import expensesRouter from './routes/expenses'
 
 
 dotenv.config()
@@ -31,6 +34,9 @@ app.use('/api/contracts', authMiddleware, contractsRouter)
 app.use('/api/payments',  authMiddleware, paymentsRouter)
 app.use('/api/projects',  authMiddleware, projectsRouter)
 app.use('/api/uploads', authMiddleware, uploadRouter)
+app.use('/api/routes', authMiddleware, routesRouter)
+app.use('/api/locals', authMiddleware, localsRouter)
+app.use('/api/expenses', authMiddleware, expensesRouter)
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Silver Star API running' })

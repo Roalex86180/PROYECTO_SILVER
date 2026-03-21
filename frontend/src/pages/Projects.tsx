@@ -174,7 +174,7 @@ export default function Projects() {
         <ProjectDetailModal
           project={selected}
           onClose={() => setSelected(null)}
-          onExport={exportProjectExcel}
+          onExport={(p, expenses) => exportProjectExcel(p, expenses)}
           onEdit={() => setEditingProject(selected)}
         />
       )}

@@ -4,8 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -23,6 +23,9 @@ model Company {
 
   workers   Worker[]
   contracts Contract[]
+  routes    RouteCompany[]  // ← nuevo
+  locals LocalCompany[]
+  expenses  Expense[]
 
   @@map("companies")
 }
@@ -44,8 +47,10 @@ model Worker {
   emergencyPhone    String?  @map("emergency_phone")
   createdAt         DateTime @default(now()) @map("created_at")
 
-  company   Company?   @relation(fields: [companyId], references: [id])
+  company   Company?      @relation(fields: [companyId], references: [id])
   contracts Contract[]
+  locals    LocalWorker[] // ← nuevo
+  routes RouteWorker[]
 
   @@map("workers")
 }
@@ -64,9 +69,70 @@ model Project {
   createdAt     DateTime  @default(now()) @map("created_at")
 
   contracts Contract[]
+  routes    Route[]     // ← nuevo
+  expenses  Expense[]
 
   @@map("projects")
 }
+
+// ── NUEVOS MODELOS ────────────────────────────────────────
+
+model Route {
+  id        String   @id @default(uuid())
+  name      String                        // "Ruta 1", "Ruta 2"
+  projectId String   @map("project_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project   Project        @relation(fields: [projectId], references: [id])
+  locals    Local[]
+  companies RouteCompany[] // muchas empresas por ruta
+  workers RouteWorker[]
+
+  @@map("routes")
+}
+
+// Tabla intermedia Route <-> Company (muchos a muchos)
+model RouteCompany {
+  routeId   String @map("route_id")
+  companyId String @map("company_id")
+
+  route   Route   @relation(fields: [routeId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@id([routeId, companyId])
+  @@map("route_companies")
+}
+
+model Local {
+  id        String   @id @default(uuid())
+  name      String                        // "McDonald's", "Local B"
+  budget    Decimal? @db.Decimal(12, 2)
+  location  String?
+  address   String?
+  zipCode   String?  @map("zip_code")
+  routeId   String   @map("route_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  route   Route         @relation(fields: [routeId], references: [id])
+  workers LocalWorker[] // muchos workers por local
+  companies LocalCompany[]
+
+  @@map("locals")
+}
+
+// Tabla intermedia Local <-> Worker (muchos a muchos)
+model LocalWorker {
+  localId  String @map("local_id")
+  workerId String @map("worker_id")
+
+  local  Local  @relation(fields: [localId], references: [id])
+  worker Worker @relation(fields: [workerId], references: [id])
+
+  @@id([localId, workerId])
+  @@map("local_workers")
+}
+
+// ── MODELOS EXISTENTES SIN CAMBIOS ───────────────────────
 
 model Contract {
   id          String   @id @default(uuid())
@@ -101,7 +167,6 @@ model Payment {
   contract Contract @relation(fields: [contractId], references: [id])
 
   @@map("payments")
-
 }
 
 model User {
@@ -113,4 +178,50 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("users")
+}
+
+
+model RouteWorker {
+  routeId  String @map("route_id")
+  workerId String @map("worker_id")
+
+  route  Route  @relation(fields: [routeId], references: [id])
+  worker Worker @relation(fields: [workerId], references: [id])
+
+  @@id([routeId, workerId])
+  @@map("route_workers")
+}
+
+model LocalCompany {
+  localId   String @map("local_id")
+  companyId String @map("company_id")
+
+  local   Local   @relation(fields: [localId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@id([localId, companyId])
+  @@map("local_companies")
+}
+
+
+model Expense {
+  id          String   @id @default(uuid())
+  description String                        // descripción libre
+  amount      Decimal  @db.Decimal(12, 2)
+  date        DateTime @db.Date
+  category    String                        // libre: "Pasaje", "Comida", etc
+  paymentMethod String? @map("payment_method")
+  notes       String?
+  receiptUrl  String?  @map("receipt_url")
+  
+  // Asociaciones opcionales
+  projectId   String?  @map("project_id")
+  companyId   String?  @map("company_id")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  project Project? @relation(fields: [projectId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@map("expenses")
 }

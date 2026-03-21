@@ -8,6 +8,7 @@ import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import { workerService, type CreateWorkerDto } from '../../services/workerService'
 import { companyService, type Company } from '../../services/companyService'
+import { APP_CONFIG } from '../../config'
 
 const STEPS = [
   { number: 1, label: 'Personal Info' },
@@ -123,7 +124,7 @@ export default function NewWorker() {
   }
 
   const companyOptions = [
-    { value: '', label: 'None (Silver Star direct employee)' },
+    { value: '', label: `None (${APP_CONFIG.name} direct employee)` },
     ...companies.map(c => ({ value: c.id, label: `${c.name} (EIN: ${c.ein})` })),
   ]
 
@@ -265,7 +266,7 @@ export default function NewWorker() {
                   />
                 </FormField>
                 <p className="text-xs text-gray-400 mt-1">
-                  Leave as "None" if this worker belongs directly to Silver Star
+                  Leave as "None" if this worker belongs directly to {APP_CONFIG.name}
                 </p>
               </div>
             </div>

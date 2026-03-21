@@ -10,7 +10,7 @@ export default function NewProjectForm({ onSave, onCancel }: {
     const [error, setError] = useState('')
     const [form, setForm] = useState({
         name: '', description: '', client: '', clientContact: '',
-        location: '', startDate: '', endDate: '', budget: '', status: 'active',
+        startDate: '', endDate: '', budget: '', status: 'active',
     })
 
     const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
@@ -48,7 +48,7 @@ export default function NewProjectForm({ onSave, onCancel }: {
                 <button onClick={onCancel} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                {field('Project Name', 'name', { placeholder: "McDonald's #245", required: true })}
+                {field('Project Name', 'name', { placeholder: 'Magenta Tmobile', required: true })}
                 {field('Client', 'client', { placeholder: 'Acme Corp' })}
             </div>
             <div className="mb-3">
@@ -61,8 +61,7 @@ export default function NewProjectForm({ onSave, onCancel }: {
                     onChange={e => set('description', e.target.value)}
                 />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                {field('Location', 'location', { placeholder: 'Miami, FL' })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 {field('Client Contact', 'clientContact', { placeholder: 'John Smith' })}
                 <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Status</label>
@@ -84,7 +83,7 @@ export default function NewProjectForm({ onSave, onCancel }: {
             </div>
             {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
             <div className="flex gap-2 mt-4">
-                <Button onClick={handleSave} loading={saving}>Save Project</Button>
+                <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Project'}</Button>
                 <Button variant="secondary" onClick={onCancel}>Cancel</Button>
             </div>
         </div>

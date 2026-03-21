@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { FolderKanban, Users, Building2, ChevronLeft, ChevronRight, LogOut, KeyRound, X, Menu } from 'lucide-react'
+import { FolderKanban, Users, ChevronLeft, ChevronRight, LogOut, KeyRound, X, Menu, Receipt } from 'lucide-react'
 import clsx from 'clsx'
 import { authService } from '../services/authService'
+import { APP_CONFIG } from '../config'
 import api from '../services/api'
 
 const NAV = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/hr', label: 'Human Resources', icon: Users },
+  { to: '/expenses', label: `${APP_CONFIG.name} Expenses`, icon: Receipt },
 ]
 
 // ─── Change Password Modal ────────────────────────────────────────────────────
@@ -113,21 +115,14 @@ export default function Layout() {
   return (
     <div className="flex h-screen bg-gray-100 text-gray-900">
 
-      {/* ── Mobile overlay ── */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={closeMobile}
-        />
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={closeMobile} />
       )}
 
-      {/* ── SIDEBAR ── */}
+      {/* SIDEBAR */}
       <aside className={clsx(
-        'fixed md:relative z-40 flex flex-col transition-all duration-300 ease-in-out h-full',
-        'bg-blue-950',
-        // Mobile: slide in/out
+        'fixed md:relative z-40 flex flex-col transition-all duration-300 ease-in-out h-full bg-blue-950',
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-        // Desktop: collapse
         collapsed ? 'w-16' : 'w-60'
       )}>
 
@@ -136,13 +131,13 @@ export default function Layout() {
           'h-16 flex items-center border-b border-blue-900 overflow-hidden transition-all duration-300',
           collapsed ? 'justify-center' : 'gap-3 px-5'
         )}>
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
-            <Building2 size={16} className="text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+            <img src="/icon-192.png" alt={APP_CONFIG.name} className="w-full h-full object-cover" />
           </div>
           {!collapsed && (
             <div>
-              <p className="text-sm font-bold text-white leading-none">Silver Star</p>
-              <p className="text-xs text-blue-300 mt-0.5">Logistic</p>
+              <p className="text-sm font-bold text-white leading-none">{APP_CONFIG.name.split(' ').slice(0, 2).join(' ')}</p>
+              <p className="text-xs text-blue-300 mt-0.5">{APP_CONFIG.name.split(' ').slice(2).join(' ')}</p>
             </div>
           )}
         </div>
@@ -150,9 +145,7 @@ export default function Layout() {
         {/* Nav */}
         <nav className="flex-1 p-2 space-y-1 mt-2">
           {!collapsed && (
-            <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-widest px-3 pt-1 pb-2">
-              Menu
-            </p>
+            <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-widest px-3 pt-1 pb-2">Menu</p>
           )}
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} title={collapsed ? label : ''}
@@ -172,19 +165,18 @@ export default function Layout() {
         {/* Footer */}
         {!collapsed && (
           <div className="px-5 py-4 border-t border-blue-900">
-            <p className="text-xs text-blue-300">Silver Star Logistic</p>
-            <p className="text-xs text-blue-500">© 2025</p>
+            <p className="text-xs text-blue-300">{APP_CONFIG.name}</p>
+            <p className="text-xs text-blue-500">© {APP_CONFIG.year}</p>
           </div>
         )}
 
-        {/* Toggle button — desktop only */}
         <button onClick={() => setCollapsed(v => !v)}
           className="hidden md:flex absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all z-10">
           {collapsed ? <ChevronRight size={12} className="text-blue-600" /> : <ChevronLeft size={12} className="text-blue-600" />}
         </button>
       </aside>
 
-      {/* ── RIGHT SIDE ── */}
+      {/* RIGHT SIDE */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* TOPBAR */}
@@ -195,19 +187,15 @@ export default function Layout() {
           }}
         >
           <div className="flex items-center gap-3">
-            {/* Hamburger — mobile only */}
-            <button
-              onClick={() => setMobileOpen(v => !v)}
-              className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-blue-200 hover:bg-white/10 transition-all"
-            >
+            <button onClick={() => setMobileOpen(v => !v)}
+              className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-blue-200 hover:bg-white/10 transition-all">
               <Menu size={18} />
             </button>
-
-            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 items-center justify-center hidden md:flex">
-              <Building2 size={15} className="text-blue-200" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden items-center justify-center hidden md:flex">
+              <img src="/icon-192.png" alt={APP_CONFIG.name} className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-none tracking-wide">Silver Star Logistic</p>
+              <p className="text-sm font-bold text-white leading-none tracking-wide">{APP_CONFIG.name}</p>
               <p className="text-[11px] text-blue-300 mt-0.5 tracking-wider uppercase hidden md:block">Management System</p>
             </div>
           </div>
@@ -231,13 +219,11 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* PAGE CONTENT */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>
 
-      {/* Change Password Modal */}
       {showChangePass && <ChangePasswordModal onClose={() => setShowChangePass(false)} />}
     </div>
   )

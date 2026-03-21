@@ -12,6 +12,9 @@ import EditContractModal from './hr/modals/EditContractModal'
 import EditCompanyModal from './hr/modals/EditCompanyModal'
 import EditWorkerModal from './hr/modals/EditWorkerModal'
 import PaymentRow from './hr/components/PaymentRow'
+import NewCompanyModal from './hr/modals/Newcompanymodal'
+
+
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function HumanResources() {
@@ -39,6 +42,7 @@ export default function HumanResources() {
   const [zoom, setZoom] = useState<number>(1)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [mobileDetailType, setMobileDetailType] = useState<'worker' | 'company'>('worker')
+  const [showNewCompany, setShowNewCompany] = useState(false)
 
   useEffect(() => {
     Promise.all([workerService.getAll(), companyService.getAll(), contractService.getAll()])
@@ -133,6 +137,10 @@ export default function HumanResources() {
           <button onClick={() => navigate('/hr/new-contract')}
             className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 transition-colors shrink-0">
             <FileText size={13} /> New Contract
+          </button>
+          <button onClick={() => setShowNewCompany(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors shrink-0">
+            <Plus size={13} /> New Company
           </button>
           <button onClick={() => navigate('/hr/register-payment')}
             className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 transition-colors shrink-0">
@@ -493,6 +501,16 @@ export default function HumanResources() {
             </div>
           </div>
         </div>
+      )}
+
+      {showNewCompany && (
+        <NewCompanyModal
+          onClose={() => setShowNewCompany(false)}
+          onSaved={company => {
+            setCompanies(prev => [company, ...prev])
+            setShowNewCompany(false)
+          }}
+        />
       )}
 
       {/* ── Modals ── */}
