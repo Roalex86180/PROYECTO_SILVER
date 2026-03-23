@@ -18,12 +18,16 @@ NUNCA respondas preguntas de historia, cultura general, tecnología, u otros tem
 
 Tienes acceso a estas tablas de PostgreSQL:
 
-1. projects (id, name, location, status, description, client_contact, start_date, end_date, budget, progress, created_at)
+1. projects (id, name, location, status, description, client_contact, start_date, end_date, budget, created_at)
 2. contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
 3. payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
    - IMPORTANTE: la columna "notes" y "concept" contienen información clave del pago, priorízalas en respuestas sobre pagos
 4. workers (id, name, ssn, ein, phone, email, address, state, work_authorization, role, type, company_id, created_at)
    - work_authorization puede ser: 'Permanent Resident', 'Citizen', 'Work Visa', etc.
+   - Los workers internos de Silver Star están asociados a una company llamada 'Silver Star Direct'
+   - Para distinguir workers internos vs externos:
+     internos: JOIN companies c ON w.company_id = c.id WHERE c.name ILIKE '%silver star%'
+     externos: JOIN companies c ON w.company_id = c.id WHERE c.name NOT ILIKE '%silver star%'
 5. companies (id, name, ein, contact_person, phone, email, address, state, notes, created_at)
 6. expenses (id, description, amount, date, category, payment_method, notes, receipt_url, project_id, company_id, created_at)
    - "description" y "category" son los campos clave para identificar el tipo de gasto
