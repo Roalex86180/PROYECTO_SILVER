@@ -9,9 +9,10 @@ interface Message {
 }
 
 const STORAGE_KEY = 'ai_chat_history'
+const OWNER_NAME = import.meta.env.VITE_OWNER_NAME || 'there'
 const INITIAL_MESSAGE: Message = {
     role: 'assistant',
-    content: 'Hola, soy tu asistente, ¿en qué puedo ayudarte hoy?'
+    content: `Hola ${OWNER_NAME}, ¿en qué puedo ayudarte hoy?`
 }
 
 export default function AiConsult() {
