@@ -82,7 +82,6 @@ function shapeProject(p: any) {
     startDate:     p.startDate,
     endDate:       p.endDate,
     budget:        p.budget ? Number(p.budget) : null,
-    progress:      p.progress ?? 0,
     createdAt:     p.createdAt,
     spent,
     team:          Array.from(teamMap.values()),
@@ -144,7 +143,7 @@ router.post('/', async (req: Request, res: Response) => {
         startDate:     startDate     ? new Date(startDate) : null,
         endDate:       endDate       ? new Date(endDate)   : null,
         budget:        budget        ? Number(budget)      : null,
-        progress:      0,
+        
       }
     })
     res.status(201).json(project)

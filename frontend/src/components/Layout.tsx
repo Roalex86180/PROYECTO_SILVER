@@ -5,11 +5,13 @@ import clsx from 'clsx'
 import { authService } from '../services/authService'
 import { APP_CONFIG } from '../config'
 import api from '../services/api'
+import { Sparkles } from 'lucide-react'
 
 const NAV = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/hr', label: 'Human Resources', icon: Users },
   { to: '/expenses', label: `${APP_CONFIG.name} Expenses`, icon: Receipt },
+  { to: '/ai', label: 'AI Assistant', icon: Sparkles },
 ]
 
 // ─── Change Password Modal ────────────────────────────────────────────────────

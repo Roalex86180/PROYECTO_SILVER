@@ -42,7 +42,6 @@ export type ProjectDetail = Project & {
     endDate?: string
     budget?: number | null
     spent?: number
-    progress?: number
     team?: TeamMember[]
     companies?: ContractedCompany[]
     payments?: Payment[]

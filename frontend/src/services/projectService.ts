@@ -67,7 +67,6 @@ export type CreateProjectDto = {
 
 export type UpdateProjectDto = Partial<CreateProjectDto & {
   status: string
-  progress: number
   spent: number
 }>
 

@@ -8,6 +8,7 @@ import RegisterPayment from './pages/hr/RegisterPayment'
 import Login from './pages/Login'
 import { authService } from './services/authService'
 import Expenses from './pages/Expenses'
+import AiConsult from './pages/AiConsult'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   return authService.isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="hr/new-contract"     element={<NewContract />} />
           <Route path="hr/register-payment" element={<RegisterPayment />} />
           <Route path="expenses" element={<Expenses />} />
+          <Route path="ai" element={<AiConsult />} />
         </Route>
       </Routes>
     </BrowserRouter>

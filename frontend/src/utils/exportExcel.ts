@@ -86,7 +86,6 @@ export type ProjectExportData = {
   endDate?: string | null
   budget?: number | null
   spent?: number
-  progress?: number
   createdAt: string
   team?: ProjectTeamMemberFull[]
   companies?: ProjectContractedCompany[]

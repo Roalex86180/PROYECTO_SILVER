@@ -65,7 +65,6 @@ model Project {
   startDate     DateTime? @map("start_date") @db.Date
   endDate       DateTime? @map("end_date") @db.Date
   budget        Decimal?  @db.Decimal(12, 2)
-  progress      Int?      @default(0)
   createdAt     DateTime  @default(now()) @map("created_at")
 
   contracts Contract[]

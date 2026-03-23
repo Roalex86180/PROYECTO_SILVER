@@ -6,6 +6,7 @@ import uploadRouter from './routes/upload'
 import routesRouter from './routes/routes'
 import localsRouter from './routes/locals'
 import expensesRouter from './routes/expenses'
+import aiRouter from './routes/ai'
 
 
 dotenv.config()
@@ -17,6 +18,7 @@ import paymentsRouter  from './routes/payments'
 import projectsRouter  from './routes/projects'
 import authRouter      from './routes/auth'
 import { authMiddleware } from './middleware/authMiddleware'
+
 
 
 const app = express()
@@ -37,6 +39,7 @@ app.use('/api/uploads', authMiddleware, uploadRouter)
 app.use('/api/routes', authMiddleware, routesRouter)
 app.use('/api/locals', authMiddleware, localsRouter)
 app.use('/api/expenses', authMiddleware, expensesRouter)
+app.use('/api/ai', authMiddleware, aiRouter)
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Silver Star API running' })
