@@ -8,31 +8,25 @@ const client = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY
 })
 
-// ─── Schema context (RESTAURADO COMPLETO) ────────────────────────────────────
+// ─── Schema context (shared between prompts) ─────────────────────────────────
 
 const DB_SCHEMA = `
 Tablas disponibles en PostgreSQL:
 
 1. projects (id, name, location, status, description, client_contact, start_date, end_date, budget, created_at)
-    - status puede ser: 'active', 'completed', 'paused', 'archived'
-
+   - status puede ser: 'active', 'completed', 'paused', 'archived'
 2. contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
-
 3. payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
-    - Son los pagos a workers/companies por trabajo en proyectos
-    - Para gastos de un proyecto: payments → contracts → projects
-
+   - Son los pagos a workers/companies por trabajo en proyectos
+   - Para gastos de un proyecto: payments → contracts → projects
 4. workers (id, name, ssn, ein, phone, email, address, state, work_authorization, role, type, company_id, created_at)
-    - Internos de Silver Star: company_id IS NULL
-    - Externos (otras compañías): company_id IS NOT NULL
-
+   - Internos de Silver Star: company_id IS NULL
+   - Externos (otras compañías): company_id IS NOT NULL
 5. companies (id, name, ein, contact_person, phone, email, address, state, notes, created_at)
-
 6. expenses (id, description, amount, date, category, payment_method, notes, receipt_url, project_id, company_id, created_at)
-    - Gastos OPERATIVOS de Silver Star (viajes, comidas, combustible, etc.)
-    - NO son pagos a workers/companies
-    - Usar SOLO para gastos administrativos de Silver Star
-
+   - Gastos OPERATIVOS de Silver Star (viajes, comidas, combustible, etc.)
+   - NO son pagos a workers/companies
+   - Usar SOLO para gastos administrativos de Silver Star
 7. routes (id, name, project_id, created_at)
 8. locals (id, name, budget, location, address, zip_code, route_id, created_at)
 9. route_companies (route_id, company_id)
@@ -41,7 +35,7 @@ Tablas disponibles en PostgreSQL:
 12. local_companies (local_id, company_id)
 `
 
-// ─── Step 0: Intent Resolver (RESTAURADO) ─────────────────────────────────────
+// ─── Step 0: Intent Resolver ──────────────────────────────────────────────────
 
 const INTENT_PROMPT = `Eres un analizador de intenciones para un asistente de datos empresariales.
 
@@ -67,7 +61,7 @@ Responde SOLO con JSON:
   "notRelevantMessage": "mensaje amigable (solo si isRelevant es false)"
 }`
 
-// ─── Step 1: SQL Generator (CON LÓGICA DE RENTABILIDAD) ───────────────────────
+// ─── Step 1: SQL Generator ────────────────────────────────────────────────────
 
 const SQL_PROMPT = `Eres un generador de SQL para PostgreSQL.
 
@@ -98,7 +92,7 @@ Responde SOLO con JSON:
   "sql": "SELECT ..."
 }`
 
-// ─── Step 2: Interpreter (RESTAURADO) ─────────────────────────────────────────
+// ─── Step 2: Interpreter ──────────────────────────────────────────────────────
 
 const INTERPRETER_PROMPT = `Eres un intérprete de resultados de base de datos para Silver Star Logistics.
 
@@ -122,7 +116,7 @@ router.post('/query', async (req: Request, res: Response) => {
             return
         }
 
-        // ── Step 0: Resolve intent (MODIFICADO: Historial limpio como mensajes) ──
+        // ── MODIFICACIÓN 1: Limpieza de historial (pasado como mensajes reales) ──
         const intentResponse = await client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 512,
@@ -148,7 +142,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         if (!intent.isRelevant) {
             res.json({
-                answer: intent.notRelevantMessage || 'Solo puedo responder preguntas relacionadas con los datos de Silver Star Logistics.',
+                answer: intent.notRelevantMessage || 'Solo puedo responder sobre datos de Silver Star.',
                 sql: null,
                 data: null
             })
@@ -157,7 +151,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         const expandedQuestion = intent.expandedQuestion || question
 
-        // ── Step 1: Generate SQL ────────────────────────────────────────────────
+        // ── MODIFICACIÓN 2: Lógica de rentabilidad integrada en SQL_PROMPT ─────
         const sqlResponse = await client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
@@ -186,7 +180,6 @@ router.post('/query', async (req: Request, res: Response) => {
             return
         }
 
-        // ── Step 2: Execute SQL ───────────────────────────────────────────────
         let queryResult: any[]
         try {
             queryResult = await prisma.$queryRawUnsafe(sql)
@@ -200,7 +193,6 @@ router.post('/query', async (req: Request, res: Response) => {
             return
         }
 
-        // ── Step 3: Interpret result ──────────────────────────────────────────
         const interpretResponse = await client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
@@ -208,12 +200,12 @@ router.post('/query', async (req: Request, res: Response) => {
             messages: [
                 {
                     role: 'user',
-                    content: `Pregunta original del usuario: "${question}"\nPregunta expandida usada: "${expandedQuestion}"\n\nResultado de la consulta:\n${JSON.stringify(queryResult, null, 2)}\n\nResponde la pregunta original del usuario de forma clara y concisa.`
+                    content: `Pregunta original: "${question}"\nResultado:\n${JSON.stringify(queryResult, null, 2)}`
                 }
             ]
         })
 
-        let answer = interpretResponse.content[0].type === 'text' ? interpretResponse.content[0].text : 'No pude interpretar la respuesta.'
+        let answer = interpretResponse.content[0].type === 'text' ? interpretResponse.content[0].text : 'Error de interpretación.'
         answer = answer.replace(/```sql[\s\S]*?```/gi, '').trim()
         answer = answer.replace(/```[\s\S]*?```/gi, '').trim()
 
