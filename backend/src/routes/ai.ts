@@ -8,228 +8,488 @@ const client = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY
 })
 
-// ─── Schema context (shared between prompts) ─────────────────────────────────
+/*
+MODELOS USADOS
+
+Haiku:
+- intent resolver
+- interpreter
+
+Sonnet:
+- SQL generator
+*/
+
+const FAST_MODEL = 'claude-3-5-haiku-20241022'
+const STRONG_MODEL = 'claude-sonnet-4-20250514'
+
+
+/*
+SCHEMA COMPLETO (solo SQL generator)
+*/
 
 const DB_SCHEMA = `
 Tablas disponibles en PostgreSQL:
 
-1. projects (id, name, location, status, description, client_contact, start_date, end_date, budget, created_at)
-   - status puede ser: 'active', 'completed', 'paused', 'archived'
+projects (id, name, location, status, description, client_contact, start_date, end_date, budget, created_at)
 
-2. contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
+contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
 
-3. payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
-   - Son los pagos a workers/companies por trabajo en proyectos
-   - Para gastos de un proyecto: payments → contracts → projects
+payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
+- Son pagos a workers/companies por trabajo en proyectos
+- Para gastos de proyectos usar:
+payments → contracts → projects
 
-4. workers (id, name, ssn, ein, phone, email, address, state, work_authorization, role, type, company_id, created_at)
-   - Internos de Silver Star: company_id IS NULL
-   - Externos (otras compañías): company_id IS NOT NULL
+workers (id, name, role, company_id)
+- Internos: company_id IS NULL
+- Externos: company_id IS NOT NULL
 
-5. companies (id, name, ein, contact_person, phone, email, address, state, notes, created_at)
+companies (id, name)
 
-6. expenses (id, description, amount, date, category, payment_method, notes, receipt_url, project_id, company_id, created_at)
-   - Gastos OPERATIVOS de Silver Star (viajes, comidas, combustible, etc.)
-   - NO son pagos a workers/companies
-   - Usar SOLO para gastos administrativos de Silver Star
+expenses (id, description, amount, date, category, payment_method, project_id)
+- SOLO gastos administrativos Silver Star
+- NUNCA usar para rentabilidad de proyectos
 
-7. routes (id, name, project_id, created_at)
-8. locals (id, name, budget, location, address, zip_code, route_id, created_at)
-9. route_companies (route_id, company_id)
-10. route_workers (route_id, worker_id)
-11. local_workers (local_id, worker_id)
-12. local_companies (local_id, company_id)
+routes (id, name, project_id)
+
+locals (id, name, budget, route_id)
 `
 
-// ─── Step 0: Intent Resolver ──────────────────────────────────────────────────
 
-const INTENT_PROMPT = `Eres un analizador de intenciones para un asistente de datos empresariales.
+/*
+SCHEMA REDUCIDO (intent resolver)
+reduce tokens y latencia
+*/
 
-Tu trabajo es analizar la pregunta del usuario (considerando el historial de conversación) 
-y determinar:
-1. Si es relevante para los datos de la empresa
-2. Reformular la pregunta de forma clara y específica para que sea consultable en SQL
+const INTENT_SCHEMA = `
+Tablas principales:
+projects
+payments
+contracts
+workers
+companies
+expenses
+`
 
-${DB_SCHEMA}
 
-REGLAS:
-- Si la pregunta es vaga o de seguimiento ("¿por qué?", "¿y en cheque?", "¿cuáles son?"),
-  expándela usando el contexto del historial para hacerla específica y consultable
-- Si la pregunta requiere comparación, incluye explícitamente qué comparar
-- Si la pregunta es sobre análisis ("¿por qué fue poco rentable?"), 
-  tradúcela a "obtener datos comparativos de todos los proyectos similares para analizar"
-- Si no es relevante para los datos de la empresa, márcala como no relevante
+/*
+INTENT PROMPT
+*/
 
-Responde SOLO con JSON:
+const INTENT_PROMPT = `
+Eres un analizador de intención para consultas SQL empresariales.
+
+${INTENT_SCHEMA}
+
+Tu tarea:
+
+1 detectar si la pregunta es relevante
+2 expandir preguntas ambiguas
+3 convertir follow-ups en preguntas completas SQL-ready
+
+Ejemplos:
+
+"¿y en enero?"
+→ expandir usando contexto previo
+
+"¿por qué fue menos rentable?"
+→ comparar con proyectos similares
+
+Si menciona:
+
+comparado con otros
+en relación a los demás
+respecto a otros proyectos
+
+expandir incluyendo:
+
+comparar contra proyectos del mismo estado
+
+Responde SOLO JSON:
+
 {
-  "isRelevant": true/false,
-  "expandedQuestion": "pregunta reformulada específica y consultable (solo si isRelevant es true)",
-  "notRelevantMessage": "mensaje amigable (solo si isRelevant es false)"
-}`
+"isRelevant": true/false,
+"expandedQuestion": "...",
+"notRelevantMessage": "..."
+}
+`
 
-// ─── Step 1: SQL Generator ────────────────────────────────────────────────────
 
-const SQL_PROMPT = `Eres un generador de SQL para PostgreSQL.
+/*
+SQL GENERATOR PROMPT
+*/
+
+const SQL_PROMPT = `
+Eres un generador experto SQL PostgreSQL.
 
 ${DB_SCHEMA}
+
+REGLAS CRÍTICAS:
+
+Para calcular rentabilidad:
+
+rentabilidad = projects.budget - SUM(payments.amount)
+
+NUNCA usar expenses para rentabilidad
+
+Usar SOLO:
+
+payments → contracts → projects
 
 REGLAS SQL:
-- SOLO genera SELECT, nunca INSERT/UPDATE/DELETE/DROP
-- La query SIEMPRE empieza con SELECT sin nada antes
-- NUNCA uses comentarios SQL (--)
-- Para nombres SIEMPRE usa ILIKE con %: WHERE p.name ILIKE '%texto%'
-- Para fechas: NOW() - INTERVAL 'X months/days/years'
-- Para años: EXTRACT(YEAR FROM columna) = año
-- Para meses: EXTRACT(MONTH FROM columna) = número
-- Para COUNT: CAST(COUNT(*) AS INTEGER)
-- Para montos: ROUND(valor::numeric, 2)
-- Usa aliases descriptivos
-- Combina múltiples consultas con UNION o subconsultas si es necesario
 
-Responde SOLO con JSON:
+SOLO SELECT o WITH SELECT
+
+Nunca INSERT UPDATE DELETE DROP
+
+Para nombres:
+
+ILIKE '%texto%'
+
+Para fechas:
+
+NOW() - INTERVAL 'X months'
+
+Para COUNT:
+
+CAST(COUNT(*) AS INTEGER)
+
+Para montos:
+
+ROUND(valor::numeric, 2)
+
+Responder SOLO JSON:
+
 {
-  "sql": "SELECT ..."
-}`
+"sql": "SELECT ..."
+}
+`
 
-// ─── Step 2: Interpreter ──────────────────────────────────────────────────────
 
-const INTERPRETER_PROMPT = `Eres un intérprete de resultados de base de datos para Silver Star Logistics.
+/*
+INTERPRETER PROMPT
+*/
 
-Responde de forma clara, amigable y concisa.
-- Detecta el idioma de la pregunta original y responde en ese idioma
-- NUNCA incluyas SQL en tu respuesta
-- USA tabla markdown SOLO si el usuario lo pidió explícitamente ("tabla", "tablita", "en tabla")
-- Para números simples responde directo
-- Para listas usa texto plano
-- Si el resultado está vacío, di "No hay datos registrados" y ofrece alternativas
-- NUNCA inventes datos que no estén en el resultado`
+const INTERPRETER_PROMPT = `
+Eres un intérprete de resultados SQL.
 
-// ─── Route ────────────────────────────────────────────────────────────────────
+Responde claro, corto y natural.
+
+Si resultado vacío:
+
+"No hay datos registrados para esta consulta"
+
+Nunca inventar datos
+Nunca incluir SQL
+`
+
+
+/*
+Detectar si pregunta es simple
+(bypass intent resolver)
+*/
+
+function isSimpleQuery(question: string) {
+    const q = question.toLowerCase()
+
+    return (
+        question.length < 40 &&
+        !q.includes('compar') &&
+        !q.includes('relación') &&
+        !q.includes('respecto') &&
+        !q.includes('por qué')
+    )
+}
+
+
+/*
+VALIDADOR SQL
+permite SELECT y WITH SELECT
+*/
+
+function validateSQL(sql: string) {
+
+    if (!/^(select|with)\s/i.test(sql)) {
+        throw new Error('Solo se permiten consultas SELECT')
+    }
+
+}
+
+
+/*
+PARSE JSON Claude seguro
+*/
+
+function parseClaudeJSON(raw: string) {
+
+    try {
+        return JSON.parse(
+            raw.replace(/```json|```/g, '').trim()
+        )
+    } catch {
+
+        throw new Error('Error parseando JSON Claude')
+
+    }
+
+}
+
+
+/*
+ROUTE PRINCIPAL
+*/
 
 router.post('/query', async (req: Request, res: Response) => {
+
     try {
+
         const { question, history = [] } = req.body
 
         if (!question?.trim()) {
-            res.status(400).json({ error: 'La pregunta es requerida' })
-            return
-        }
 
-        // ── Step 0: Resolve intent and expand question ────────────────────────
-        const intentResponse = await client.messages.create({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 512,
-            system: INTENT_PROMPT,
-            messages: [
-                ...history.slice(-6), // últimos 6 mensajes para contexto
-                {
-                    role: 'user',
-                    content: `Historial reciente de la conversación:
-${history.slice(-4).map((m: any) => `${m.role}: ${m.content}`).join('\n')}
-
-Pregunta actual del usuario: "${question}"`
-                }
-            ]
-        })
-
-        const intentRaw = intentResponse.content[0].type === 'text' ? intentResponse.content[0].text : ''
-        let intent: { isRelevant: boolean; expandedQuestion?: string; notRelevantMessage?: string }
-
-        try {
-            intent = JSON.parse(intentRaw.replace(/```json|```/g, '').trim())
-        } catch {
-            res.status(500).json({ error: 'Error analizando la pregunta' })
-            return
-        }
-
-        // Not relevant
-        if (!intent.isRelevant) {
-            res.json({
-                answer: intent.notRelevantMessage || 'Solo puedo responder preguntas relacionadas con los datos de Silver Star Logistics.',
-                sql: null,
-                data: null
+            res.status(400).json({
+                error: 'Pregunta requerida'
             })
+
             return
         }
 
-        const expandedQuestion = intent.expandedQuestion || question
 
-        // ── Step 1: Generate SQL from expanded question ───────────────────────
+        /*
+        STEP 0
+        intent resolver (solo si necesario)
+        */
+
+        let expandedQuestion = question
+
+        if (!isSimpleQuery(question) && history.length > 0) {
+
+            const intentResponse = await client.messages.create({
+
+                model: FAST_MODEL,
+
+                max_tokens: 300,
+
+                system: INTENT_PROMPT,
+
+                messages: [
+
+                    ...history.slice(-6),
+
+                    {
+                        role: 'user',
+                        content: question
+                    }
+
+                ]
+
+            })
+
+
+            const rawIntent = intentResponse.content[0].type === 'text'
+                ? intentResponse.content[0].text
+                : ''
+
+
+            const parsedIntent = parseClaudeJSON(rawIntent)
+
+
+            if (!parsedIntent.isRelevant) {
+
+                res.json({
+
+                    answer: parsedIntent.notRelevantMessage ||
+                        'Solo puedo responder preguntas sobre Silver Star Logistics',
+
+                    sql: null,
+
+                    data: null
+
+                })
+
+                return
+
+            }
+
+
+            expandedQuestion = parsedIntent.expandedQuestion || question
+
+        }
+
+
+        console.log('Expanded question:', expandedQuestion)
+
+
+        /*
+        STEP 1
+        generar SQL
+        */
+
         const sqlResponse = await client.messages.create({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1024,
+
+            model: STRONG_MODEL,
+
+            max_tokens: 700,
+
             system: SQL_PROMPT,
+
             messages: [
+
                 {
                     role: 'user',
-                    content: `Genera el SQL para responder esta pregunta: "${expandedQuestion}"`
+                    content:
+                        `Genera SQL para:
+
+${expandedQuestion}`
                 }
+
             ]
+
         })
 
-        const sqlRaw = sqlResponse.content[0].type === 'text' ? sqlResponse.content[0].text : ''
-        let sqlParsed: { sql: string }
 
-        try {
-            sqlParsed = JSON.parse(sqlRaw.replace(/```json|```/g, '').trim())
-        } catch {
-            res.status(500).json({ error: 'Error generando la consulta SQL' })
-            return
-        }
+        const rawSQL = sqlResponse.content[0].type === 'text'
+            ? sqlResponse.content[0].text
+            : ''
 
-        const sql = sqlParsed.sql?.trim() ?? ''
-        if (!sql.toLowerCase().startsWith('select')) {
-            res.status(400).json({ error: 'Solo se permiten consultas SELECT' })
-            return
-        }
 
-        // ── Step 2: Execute SQL ───────────────────────────────────────────────
+        const parsedSQL = parseClaudeJSON(rawSQL)
+
+        const sql = parsedSQL.sql?.trim() ?? ''
+
+
+        validateSQL(sql)
+
+
+        console.log('Generated SQL:', sql)
+
+
+        /*
+        STEP 2
+        ejecutar SQL
+        */
+
         let queryResult: any[]
+
+
         try {
+
             queryResult = await prisma.$queryRawUnsafe(sql)
+
+
             queryResult = JSON.parse(
-                JSON.stringify(queryResult, (_, value) =>
-                    typeof value === 'bigint' ? Number(value) : value
+
+                JSON.stringify(
+
+                    queryResult,
+
+                    (_, value) =>
+
+                        typeof value === 'bigint'
+                            ? Number(value)
+                            : value
+
                 )
+
             )
-        } catch (dbError: any) {
-            res.status(500).json({ error: `Error ejecutando la consulta: ${dbError.message}` })
-            return
+
         }
 
-        // ── Step 3: Interpret result ──────────────────────────────────────────
+        catch (dbError: any) {
+
+            res.status(500).json({
+
+                error: `Error SQL: ${dbError.message}`
+
+            })
+
+            return
+
+        }
+
+
+        /*
+        STEP 3
+        interpreter rápido con Haiku
+        */
+
         const interpretResponse = await client.messages.create({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1024,
+
+            model: FAST_MODEL,
+
+            max_tokens: 500,
+
             system: INTERPRETER_PROMPT,
+
             messages: [
+
+                ...history.slice(-4),
+
                 {
+
                     role: 'user',
-                    content: `Pregunta original del usuario: "${question}"
-Pregunta expandida usada: "${expandedQuestion}"
 
-Resultado de la consulta:
-${JSON.stringify(queryResult, null, 2)}
+                    content:
 
-Responde la pregunta original del usuario de forma clara y concisa.`
+                        `Pregunta original:
+
+${question}
+
+Pregunta expandida:
+
+${expandedQuestion}
+
+Resultado:
+
+${JSON.stringify(queryResult, null, 2)}`
+
                 }
+
             ]
+
         })
+
 
         let answer = interpretResponse.content[0].type === 'text'
             ? interpretResponse.content[0].text
             : 'No pude interpretar la respuesta.'
 
-        // Safety: remove any SQL blocks the model might include
-        answer = answer.replace(/```sql[\s\S]*?```/gi, '').trim()
-        answer = answer.replace(/```[\s\S]*?```/gi, '').trim()
 
-        res.json({ answer, sql, data: queryResult })
+        /*
+        limpiar bloques SQL si aparecen
+        */
 
-    } catch (error: any) {
-        console.error('AI query error:', error)
-        res.status(500).json({ error: 'Error procesando tu pregunta' })
+        answer = answer
+            .replace(/```sql[\s\S]*?```/gi, '')
+            .replace(/```[\s\S]*?```/gi, '')
+            .trim()
+
+
+        res.json({
+
+            answer,
+
+            sql,
+
+            data: queryResult
+
+        })
+
+
     }
+
+    catch (error: any) {
+
+        console.error('AI query error:', error)
+
+        res.status(500).json({
+
+            error: 'Error procesando la consulta'
+
+        })
+
+    }
+
 })
+
 
 export default router
