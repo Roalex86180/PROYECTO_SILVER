@@ -19,7 +19,7 @@ Sonnet:
 - SQL generator
 */
 
-const FAST_MODEL = 'claude-3-5-haiku-20241022'
+const FAST_MODEL = 'claude-3-5-haiku-latest'
 const STRONG_MODEL = 'claude-sonnet-4-20250514'
 
 
