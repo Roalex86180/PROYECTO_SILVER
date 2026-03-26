@@ -28,30 +28,129 @@ SCHEMA COMPLETO (solo SQL generator)
 */
 
 const DB_SCHEMA = `
-Tablas disponibles en PostgreSQL:
+Base de datos PostgreSQL
 
-projects (id, name, location, status, description, client_contact, start_date, end_date, budget, created_at)
+IMPORTANTE:
+start_date y end_date son DATE
+created_at es TIMESTAMP
+amount / budget / value son NUMERIC
 
-contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
+Reglas SQL obligatorias:
 
-payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
-- Son pagos a workers/companies por trabajo en proyectos
-- Para gastos de proyectos usar:
+- Para calcular duración usar:
+(end_date - start_date)
+
+- NO usar:
+EXTRACT(DAYS FROM ...)
+
+- expenses NO representan gastos de proyectos
+solo gastos administrativos Silver Star
+
+- Para calcular gastos de proyectos usar:
 payments → contracts → projects
 
-workers (id, name, role, company_id)
-- Internos: company_id IS NULL
-- Externos: company_id IS NOT NULL
 
-companies (id, name)
+Tablas disponibles:
 
-expenses (id, description, amount, date, category, payment_method, project_id)
-- SOLO gastos administrativos Silver Star
-- NUNCA usar para rentabilidad de proyectos
 
-routes (id, name, project_id)
+projects
 
-locals (id, name, budget, route_id)
+id INTEGER
+name TEXT
+location TEXT
+status TEXT
+description TEXT
+client_contact TEXT
+start_date DATE
+end_date DATE
+budget NUMERIC
+created_at TIMESTAMP
+
+
+
+contracts
+
+id INTEGER
+worker_id INTEGER
+company_id INTEGER
+project_id INTEGER
+start_date DATE
+end_date DATE
+payment_type TEXT
+value NUMERIC
+created_at TIMESTAMP
+
+
+
+payments
+
+id INTEGER
+contract_id INTEGER
+concept TEXT
+amount NUMERIC
+date DATE
+method TEXT
+notes TEXT
+receipt_url TEXT
+created_at TIMESTAMP
+
+IMPORTANTE:
+payments representa pagos a workers/companies por proyectos
+
+
+
+workers
+
+id INTEGER
+name TEXT
+role TEXT
+company_id INTEGER
+
+Regla:
+
+company_id IS NULL → trabajador interno
+company_id IS NOT NULL → trabajador externo
+
+
+
+companies
+
+id INTEGER
+name TEXT
+
+
+
+expenses
+
+id INTEGER
+description TEXT
+amount NUMERIC
+date DATE
+category TEXT
+payment_method TEXT
+project_id INTEGER
+
+IMPORTANTE:
+
+expenses = gastos administrativos Silver Star
+NO usar para rentabilidad de proyectos
+
+
+
+routes
+
+id INTEGER
+name TEXT
+project_id INTEGER
+
+
+
+locals
+
+id INTEGER
+name TEXT
+budget NUMERIC
+route_id INTEGER
 `
 
 
