@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
@@ -18,6 +18,8 @@ import paymentsRouter  from './routes/payments'
 import projectsRouter  from './routes/projects'
 import authRouter      from './routes/auth'
 import { authMiddleware } from './middleware/authMiddleware'
+import { trackEvent } from './utils/trackEvent'
+
 
 
 
@@ -52,6 +54,18 @@ app.use(express.static(frontendPath))
 
 app.use((_req: Request, res: Response) => {
   res.sendFile(path.join(frontendPath, 'index.html'))
+})
+
+// ── Middleware global de errores — va antes del app.listen ──────────────────
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  trackEvent('error.server', {
+    route: _req.path,
+    method: _req.method,
+    status_code: err.status ?? 500,
+    message: err.message?.slice(0, 200),
+  })
+  console.error('Unhandled error:', err)
+  res.status(err.status ?? 500).json({ error: 'Internal server error' })
 })
 
 const PORT = Number(process.env.PORT) || 3001

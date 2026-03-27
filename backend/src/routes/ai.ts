@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import Anthropic from '@anthropic-ai/sdk'
 import prisma from '../utils/prisma'
+import { trackEvent } from '../utils/trackEvent'
 
 const router = Router()
 
@@ -107,7 +108,13 @@ Responde de forma clara, amigable y concisa.
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
+
+
+// ─── Route ────────────────────────────────────────────────────────────────────
+
 router.post('/query', async (req: Request, res: Response) => {
+    const startTime = Date.now()
+
     try {
         const { question, history = [] } = req.body
 
@@ -116,7 +123,7 @@ router.post('/query', async (req: Request, res: Response) => {
             return
         }
 
-        // ── MODIFICACIÓN 1: Limpieza de historial (pasado como mensajes reales) ──
+        // ── INTENT ──────────────────────────────────────────────────────────
         const intentResponse = await client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 512,
@@ -151,7 +158,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         const expandedQuestion = intent.expandedQuestion || question
 
-        // ── MODIFICACIÓN 2: Lógica de rentabilidad integrada en SQL_PROMPT ─────
+        // ── SQL ──────────────────────────────────────────────────────────────
         const sqlResponse = await client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
@@ -193,6 +200,7 @@ router.post('/query', async (req: Request, res: Response) => {
             return
         }
 
+        // ── INTERPRET ────────────────────────────────────────────────────────
         const interpretResponse = await client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
@@ -209,9 +217,36 @@ router.post('/query', async (req: Request, res: Response) => {
         answer = answer.replace(/```sql[\s\S]*?```/gi, '').trim()
         answer = answer.replace(/```[\s\S]*?```/gi, '').trim()
 
+        // ── TRACK éxito — suma tokens de las 3 llamadas ──────────────────────
+        const totalTokensIn =
+            intentResponse.usage.input_tokens +
+            sqlResponse.usage.input_tokens +
+            interpretResponse.usage.input_tokens
+
+        const totalTokensOut =
+            intentResponse.usage.output_tokens +
+            sqlResponse.usage.output_tokens +
+            interpretResponse.usage.output_tokens
+
+        trackEvent('ai.query.success', {
+            model: 'claude-sonnet-4-20250514',
+            tokens_in: totalTokensIn,
+            tokens_out: totalTokensOut,
+            cost_usd: (totalTokensIn * 0.000003) + (totalTokensOut * 0.000015),
+            duration_ms: Date.now() - startTime,
+        })
+
         res.json({ answer, sql, data: queryResult })
 
     } catch (error: any) {
+        // ── TRACK fallo ───────────────────────────────────────────────────────
+        trackEvent('ai.query.failed', {
+            error_type: error.type ?? 'unknown',
+            error_message: error.message?.slice(0, 200),
+            prompt_length: req.body?.question?.length ?? 0,
+            duration_ms: Date.now() - startTime,
+        })
+
         console.error('AI query error:', error)
         res.status(500).json({ error: 'Error procesando tu pregunta' })
     }
