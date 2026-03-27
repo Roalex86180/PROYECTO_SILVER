@@ -15,6 +15,7 @@ Proyecto_silver
 │  │  ├─ middleware
 │  │  │  └─ authMiddleware.ts
 │  │  ├─ routes
+│  │  │  ├─ ai.ts
 │  │  │  ├─ auth.ts
 │  │  │  ├─ companies.ts
 │  │  │  ├─ contracts.ts
@@ -36,7 +37,9 @@ Proyecto_silver
 │  ├─ package-lock.json
 │  ├─ package.json
 │  ├─ public
-│  │  ├─ logo1.png
+│  │  ├─ icon-180.png
+│  │  ├─ icon-192.png
+│  │  ├─ icon-512.png
 │  │  ├─ vite.svg
 │  │  └─ _redirects
 │  ├─ README.md
@@ -55,6 +58,7 @@ Proyecto_silver
 │  │  ├─ index.css
 │  │  ├─ main.tsx
 │  │  ├─ pages
+│  │  │  ├─ AiConsult.tsx
 │  │  │  ├─ Expenses.tsx
 │  │  │  ├─ hr
 │  │  │  │  ├─ components
@@ -64,7 +68,8 @@ Proyecto_silver
 │  │  │  │  ├─ modals
 │  │  │  │  │  ├─ EditCompanyModal.tsx
 │  │  │  │  │  ├─ EditContractModal.tsx
-│  │  │  │  │  └─ EditWorkerModal.tsx
+│  │  │  │  │  ├─ EditWorkerModal.tsx
+│  │  │  │  │  └─ Newcompanymodal.tsx
 │  │  │  │  ├─ NewContract.tsx
 │  │  │  │  ├─ NewWorker.tsx
 │  │  │  │  └─ RegisterPayment.tsx
@@ -101,8 +106,29 @@ Proyecto_silver
 │  ├─ tsconfig.json
 │  ├─ tsconfig.node.json
 │  └─ vite.config.ts
-├─ icon-192.jpg
-├─ icon-512.jpg
 └─ render.yaml
 
 ```
+
+┌─────────────────────────────────────────────┐
+│  Alex Dashboard — Mis Proyectos             │
+├──────────────┬──────────────┬───────────────┤
+│              │ Silver Star  │  Cliente 2    │
+├──────────────┼──────────────┼───────────────┤
+│ Uptime       │ ✅ Online    │ ✅ Online     │
+│ AI queries   │ 12 hoy       │ 0 hoy         │
+│ AI cost      │ $0.08        │ $0.00         │
+│ Logins       │ 4            │ 1             │
+│ Errores      │ 2 ⚠️         │ 0             │
+│ Pagos reg.   │ 3            │ 0             │
+└──────────────┴──────────────┴───────────────┘
+
+Crea la Supabase de métricas — 5 minutos, cuenta tuya
+Define los eventos que quieres trackear — login, ai_query, error, payment_created
+Agrega el envío de eventos en Silver Star — pocas líneas en el backend
+El dashboard lo construyes después cuando tengas data real
+
+trackEvent("payment.created")
+trackEvent("contract.updated")
+trackEvent("ai.query.executed")
+trackEvent("login.failed")
