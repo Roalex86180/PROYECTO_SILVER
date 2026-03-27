@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../utils/prisma'
+import { trackEvent } from '../utils/trackEvent'
 
 const router = Router()
 
@@ -46,9 +47,17 @@ router.post('/', async (req: Request, res: Response) => {
         }
       }
     })
+
+    trackEvent('payment.created', {
+      paymentId: payment.id,
+      concept,
+      method,
+    })
+
     res.status(201).json(payment)
   } catch (error) {
     res.status(500).json({ error: 'Error al registrar pago' })
   }
 })
+
 export default router
