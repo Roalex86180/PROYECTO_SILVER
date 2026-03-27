@@ -19,8 +19,13 @@ export function trackEvent(
     eventType: EventType,
     payload: Record<string, unknown>
 ): void {
-    // Si no está configurado el monitor, no hacer nada (ej: desarrollo local)
-    if (!MONITOR_URL || !MONITOR_API_KEY) return;
+    console.log('[trackEvent] MONITOR_URL:', MONITOR_URL)
+    console.log('[trackEvent] MONITOR_API_KEY:', MONITOR_API_KEY ? 'set' : 'NOT SET')
+
+    if (!MONITOR_URL || !MONITOR_API_KEY) {
+        console.log('[trackEvent] Skipping — env vars not set')
+        return
+    }
 
     // Fire and forget — sin await intencional
     fetch(`${MONITOR_URL}/track`, {
