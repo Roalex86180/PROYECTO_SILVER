@@ -35,8 +35,10 @@ export function trackEvent(
             Authorization: `Bearer ${MONITOR_API_KEY}`,
         },
         body: JSON.stringify({ eventType, payload }),
-    }).catch(() => {
-        // Silenciar errores — el monitor no debe afectar la app principal
+    }).then(res => {
+        console.log('[trackEvent] Response status:', res.status)
+    }).catch((err) => {
+        console.log('[trackEvent] Fetch error:', err.message)
     });
 }
 
