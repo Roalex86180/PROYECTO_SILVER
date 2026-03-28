@@ -7,7 +7,7 @@ type Props = {
 }
 
 export default function PaymentRow({ payment, onViewReceipt }: Props) {
-    console.log('payment.date raw:', JSON.stringify(payment.date))
+    
     return (
         <div className="flex items-center justify-between px-4 py-2.5">
             <div>
