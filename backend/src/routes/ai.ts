@@ -141,7 +141,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         // ── INTENT ──────────────────────────────────────────────────────────
         const intentResponse = await client.messages.create({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 512,
             system: INTENT_PROMPT,
             messages: [
@@ -176,7 +176,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         // ── SQL ──────────────────────────────────────────────────────────────
         const sqlResponse = await client.messages.create({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             system: SQL_PROMPT,
             messages: [
@@ -251,7 +251,7 @@ router.post('/query', async (req: Request, res: Response) => {
             interpretResponse.usage.output_tokens
 
         trackEvent('ai.query.success', {
-            model: 'claude-sonnet-4-20250514',
+            model: 'haiku+sonnet',
             tokens_in: totalTokensIn,
             tokens_out: totalTokensOut,
             cost_usd: (totalTokensIn * 0.000003) + (totalTokensOut * 0.000015),
