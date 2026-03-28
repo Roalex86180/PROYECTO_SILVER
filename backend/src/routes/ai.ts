@@ -54,6 +54,10 @@ REGLAS:
 - Si la pregunta es sobre análisis ("¿por qué fue poco rentable?"), 
   tradúcela a "obtener datos comparativos de todos los proyectos similares para analizar"
 - Si no es relevante para los datos de la empresa, márcala como no relevante
+- Para contar elementos relacionados (rutas, locales, workers) SIEMPRE usa 
+  COUNT(DISTINCT campo) para evitar duplicados por JOINs múltiples
+- Cuando la pregunta pida múltiples conteos en una sola query, usa subconsultas 
+  separadas en lugar de JOINs que puedan inflar los resultados
 
 Responde SOLO con JSON:
 {
