@@ -85,8 +85,24 @@ REGLAS SQL:
   LEFT JOIN payments pay ON pay.contract_id = c.id
   GROUP BY p.id, p.name, p.budget
 - Usa LEFT JOIN para incluir proyectos sin pagos
-- Usa aliases descriptivos
 - Combina múltiples consultas con UNION o subconsultas si es necesario
+
+ALIASES OBLIGATORIOS — usa SIEMPRE estos y solo estos:
+- projects → p
+- contracts → c
+- payments → pay
+- workers → w
+- companies → co
+- expenses → e
+- routes → r
+- locals → l
+- route_companies → rc
+- route_workers → rw
+- local_workers → lw
+- local_companies → lc
+
+NUNCA uses un alias que no hayas definido en el FROM o en un JOIN.
+Antes de escribir el WHERE, verifica que cada alias referenciado esté declarado.
 
 Responde SOLO con JSON:
 {
