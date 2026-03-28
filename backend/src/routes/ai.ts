@@ -237,6 +237,8 @@ router.post('/query', async (req: Request, res: Response) => {
                     typeof value === 'bigint' ? Number(value) : value
                 )
             )
+            console.log('[SQL]:', sql)
+            console.log('[RESULT]:', JSON.stringify(queryResult))
         } catch (dbError: any) {
             trackEvent('ai.query.failed', {
                 error_type: 'db_query_error',
