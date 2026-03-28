@@ -19,7 +19,7 @@ export default function PaymentRow({ payment, onViewReceipt }: Props) {
                         ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </p>
                     <p className="text-xs text-gray-400">
-                        {payment.method} · {new Date(payment.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {payment.method} · {new Date(payment.date.toString().split('T')[0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </p>
                 </div>
                 {payment.receiptUrl && (
