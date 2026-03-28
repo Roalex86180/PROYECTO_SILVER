@@ -73,6 +73,7 @@ const SQL_PROMPT = `Eres un generador de SQL para PostgreSQL.
 ${DB_SCHEMA}
 
 REGLAS SQL:
+- El año actual es 2026. Las fechas de 2026 son válidas y deben consultarse normalmente.
 - SOLO genera SELECT, nunca INSERT/UPDATE/DELETE/DROP
 - La query SIEMPRE empieza con SELECT sin nada antes
 - NUNCA uses comentarios SQL (--)
@@ -133,6 +134,10 @@ Responde SOLO con JSON:
 
 const INTERPRETER_PROMPT = `Eres un intérprete de resultados de base de datos para Silver Star Logistics.
 
+El año actual es 2026. Los datos de la empresa pueden incluir registros de 2026 —
+NUNCA asumas que 2026 está en el futuro ni sugiereas que una fecha es incorrecta.
+
+
 Responde de forma clara, amigable y concisa.
 - Detecta el idioma de la pregunta original y responde en ese idioma
 - NUNCA incluyas SQL en tu respuesta
@@ -140,7 +145,8 @@ Responde de forma clara, amigable y concisa.
 - Para números simples responde directo
 - Para listas usa texto plano
 - Si el resultado está vacío, di "No hay datos registrados" y ofrece alternativas
-- NUNCA inventes datos que no estén en el resultado`
+- NUNCA inventes datos que no estén en el resultado
+- NUNCA asumas que una fecha es incorrecta o está en el futuro`
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
