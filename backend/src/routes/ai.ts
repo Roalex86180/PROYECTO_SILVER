@@ -77,24 +77,35 @@ REGLAS SQL:
 - La query SIEMPRE empieza con SELECT sin nada antes
 - NUNCA uses comentarios SQL (--)
 - Para nombres SIEMPRE usa ILIKE con %: WHERE p.name ILIKE '%texto%'
-- Para fechas: NOW() - INTERVAL 'X months/days/years'
-- Para años: EXTRACT(YEAR FROM columna) = año
-- Para meses: EXTRACT(MONTH FROM columna) = número
 - Para COUNT: CAST(COUNT(*) AS INTEGER)
+- Para COUNT sin duplicados por JOINs: COUNT(DISTINCT alias.id)
 - Para montos: ROUND(valor::numeric, 2)
-- Para calcular rentabilidad de proyectos SIEMPRE usa:
-  ROUND((p.budget - COALESCE(SUM(pay.amount), 0))::numeric, 2) as rentabilidad
+
+FECHAS — reglas estrictas:
+- SIEMPRE castea las columnas de fecha a ::timestamp antes de operar sobre ellas
+- Para duración entre fechas:
+  EXTRACT(EPOCH FROM (COALESCE(p.end_date, NOW())::timestamp - p.start_date::timestamp))/86400 AS dias
+- Para filtrar por año: EXTRACT(YEAR FROM columna::timestamp) = 2024
+- Para filtrar por mes: EXTRACT(MONTH FROM columna::timestamp) = 6
+- Para fechas relativas: NOW() - INTERVAL 'X months' o 'X days' o 'X years'
+- Para fechas que pueden ser NULL: COALESCE(columna, NOW())::timestamp
+- NUNCA uses EXTRACT sobre un valor integer o sin ::timestamp explícito
+
+RENTABILIDAD DE PROYECTOS — usa siempre esta estructura:
+  SELECT p.id, p.name, p.budget,
+    ROUND((p.budget - COALESCE(SUM(pay.amount), 0))::numeric, 2) AS rentabilidad
   FROM projects p
   LEFT JOIN contracts c ON c.project_id = p.id
   LEFT JOIN payments pay ON pay.contract_id = c.id
   GROUP BY p.id, p.name, p.budget
-- Usa LEFT JOIN para incluir proyectos sin pagos
-- Combina múltiples consultas con UNION o subconsultas si es necesario
-- Para calcular duración entre fechas SIEMPRE usa:
-  EXTRACT(EPOCH FROM (end_date - start_date))/86400 AS dias
-  NUNCA uses EXTRACT con columnas de tipo integer o sin castear
-- Para fechas que pueden ser NULL usa COALESCE:
-  COALESCE(end_date, NOW()) para proyectos sin fecha fin
+
+CONTEOS CON MÚLTIPLES JOINS:
+- Cuando la pregunta pida contar rutas Y locales en la misma query, usa subconsultas:
+  SELECT 
+    (SELECT COUNT(*) FROM routes r WHERE r.project_id = p.id) AS total_rutas,
+    (SELECT COUNT(*) FROM locals l JOIN routes r ON l.route_id = r.id WHERE r.project_id = p.id) AS total_locales
+  FROM projects p WHERE p.name ILIKE '%nombre%'
+- NUNCA cuentes con JOINs directos cuando hay múltiples niveles — inflan los resultados
 
 ALIASES OBLIGATORIOS — usa SIEMPRE estos y solo estos:
 - projects → p
