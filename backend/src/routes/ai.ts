@@ -196,6 +196,12 @@ router.post('/query', async (req: Request, res: Response) => {
                 )
             )
         } catch (dbError: any) {
+            trackEvent('ai.query.failed', {
+                error_type: 'db_query_error',
+                error_message: dbError.message?.slice(0, 200),
+                prompt_length: question?.length ?? 0,
+                duration_ms: Date.now() - startTime,
+            })
             res.status(500).json({ error: `Error ejecutando la consulta: ${dbError.message}` })
             return
         }
