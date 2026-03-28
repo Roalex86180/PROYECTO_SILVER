@@ -7,6 +7,7 @@ type Props = {
 }
 
 export default function PaymentRow({ payment, onViewReceipt }: Props) {
+    console.log('payment.date:', payment.date, typeof payment.date)
     return (
         <div className="flex items-center justify-between px-4 py-2.5">
             <div>
@@ -20,7 +21,6 @@ export default function PaymentRow({ payment, onViewReceipt }: Props) {
                     </p>
                     <p className="text-xs text-gray-400">
                         {payment.method} · {new Date(payment.date.toString().split('T')[0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        console.log('payment.date:', payment.date, typeof payment.date)
                     </p>
                 </div>
                 {payment.receiptUrl && (
