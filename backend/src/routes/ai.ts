@@ -90,6 +90,11 @@ REGLAS SQL:
   GROUP BY p.id, p.name, p.budget
 - Usa LEFT JOIN para incluir proyectos sin pagos
 - Combina múltiples consultas con UNION o subconsultas si es necesario
+- Para calcular duración entre fechas SIEMPRE usa:
+  EXTRACT(EPOCH FROM (end_date - start_date))/86400 AS dias
+  NUNCA uses EXTRACT con columnas de tipo integer o sin castear
+- Para fechas que pueden ser NULL usa COALESCE:
+  COALESCE(end_date, NOW()) para proyectos sin fecha fin
 
 ALIASES OBLIGATORIOS — usa SIEMPRE estos y solo estos:
 - projects → p
