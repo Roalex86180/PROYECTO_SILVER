@@ -167,7 +167,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         // ── INTENT ──────────────────────────────────────────────────────────
         const intentResponse = await client.messages.create({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-sonnet-4-20250514',
             max_tokens: 512,
             system: INTENT_PROMPT,
             messages: [
