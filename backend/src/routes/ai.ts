@@ -66,7 +66,7 @@ Responde SOLO con JSON:
   "notRelevantMessage": "mensaje amigable (solo si isRelevant es false)"
 }`
 
-// ─── Step 1: SQL Generator ────────────────────────────────────────────────────
+// ─── Step 1: SQL Gnerator ────────────────────────────────────────────────────
 
 const SQL_PROMPT = `Eres un generador de SQL para PostgreSQL.
 
