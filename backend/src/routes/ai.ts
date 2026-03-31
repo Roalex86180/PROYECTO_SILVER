@@ -107,6 +107,10 @@ REGLAS SQL:
 - Para COUNT sin duplicados por JOINs: COUNT(DISTINCT alias.id)
 - Para montos: ROUND(valor::numeric, 2)
 
+REGLA CRÍTICA PARA AGREGACIONES (ERROR 42803):
+- NUNCA uses funciones de agregación (SUM, COUNT, AVG, MAX, MIN) dentro de la cláusula WHERE.
+- Si necesitas filtrar por un valor calculado (ej. "pagos totales = 0" o "proyectos con más de 5 rutas"), debes usar GROUP BY y filtrar con HAVING.
+
 FECHAS — reglas estrictas:
 - SIEMPRE castea las columnas de fecha a ::timestamp antes de operar sobre ellas
 - Para duración entre fechas:
