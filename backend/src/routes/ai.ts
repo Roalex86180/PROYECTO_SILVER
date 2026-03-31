@@ -9,6 +9,31 @@ const client = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY
 })
 
+// ─── Helper de Reintentos (Exponential Backoff) ──────────────────────────────
+
+async function withRetry<T>(
+    fn: () => Promise<T>,
+    maxAttempts = 3,
+    baseDelayMs = 1000
+): Promise<T> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await fn()
+        } catch (err: any) {
+            const isOverloaded = err?.error?.type === 'overloaded_error'
+                || err?.type === 'overloaded_error'
+            const isLast = attempt === maxAttempts
+
+            if (!isOverloaded || isLast) throw err
+
+            const delay = baseDelayMs * 2 ** (attempt - 1) // 1s → 2s → 4s
+            console.warn(`[AI] Overloaded, reintento ${attempt}/${maxAttempts} en ${delay}ms`)
+            await new Promise(r => setTimeout(r, delay))
+        }
+    }
+    throw new Error('Max retries reached')
+}
+
 // ─── Schema context (shared between prompts) ─────────────────────────────────
 
 const DB_SCHEMA = `
@@ -61,12 +86,12 @@ REGLAS:
 
 Responde SOLO con JSON:
 {
-  "isRelevant": true/false,
+  "isRelevant": true,
   "expandedQuestion": "pregunta reformulada específica y consultable (solo si isRelevant es true)",
   "notRelevantMessage": "mensaje amigable (solo si isRelevant es false)"
 }`
 
-// ─── Step 1: SQL Gnerator ────────────────────────────────────────────────────
+// ─── Step 1: SQL Generator ────────────────────────────────────────────────────
 
 const SQL_PROMPT = `Eres un generador de SQL para PostgreSQL.
 
@@ -135,8 +160,7 @@ Responde SOLO con JSON:
 const INTERPRETER_PROMPT = `Eres un intérprete de resultados de base de datos para Silver Star Logistics.
 
 El año actual es 2026. Los datos de la empresa pueden incluir registros de 2026 —
-NUNCA asumas que 2026 está en el futuro ni sugiereas que una fecha es incorrecta.
-
+NUNCA asumas que 2026 está en el futuro ni sugieras que una fecha es incorrecta.
 
 Responde de forma clara, amigable y concisa.
 - Detecta el idioma de la pregunta original y responde en ese idioma
@@ -147,10 +171,6 @@ Responde de forma clara, amigable y concisa.
 - Si el resultado está vacío, di "No hay datos registrados" y ofrece alternativas
 - NUNCA inventes datos que no estén en el resultado
 - NUNCA asumas que una fecha es incorrecta o está en el futuro`
-
-// ─── Route ────────────────────────────────────────────────────────────────────
-
-
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -166,7 +186,7 @@ router.post('/query', async (req: Request, res: Response) => {
         }
 
         // ── INTENT ──────────────────────────────────────────────────────────
-        const intentResponse = await client.messages.create({
+        const intentResponse = await withRetry(() => client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 512,
             system: INTENT_PROMPT,
@@ -177,7 +197,7 @@ router.post('/query', async (req: Request, res: Response) => {
                     content: `Pregunta actual del usuario: "${question}"`
                 }
             ]
-        })
+        }))
 
         const intentRaw = intentResponse.content[0].type === 'text' ? intentResponse.content[0].text : ''
         let intent: { isRelevant: boolean; expandedQuestion?: string; notRelevantMessage?: string }
@@ -201,7 +221,7 @@ router.post('/query', async (req: Request, res: Response) => {
         const expandedQuestion = intent.expandedQuestion || question
 
         // ── SQL ──────────────────────────────────────────────────────────────
-        const sqlResponse = await client.messages.create({
+        const sqlResponse = await withRetry(() => client.messages.create({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             system: SQL_PROMPT,
@@ -211,7 +231,7 @@ router.post('/query', async (req: Request, res: Response) => {
                     content: `Genera el SQL para responder esta pregunta: "${expandedQuestion}"`
                 }
             ]
-        })
+        }))
 
         const sqlRaw = sqlResponse.content[0].type === 'text' ? sqlResponse.content[0].text : ''
         let sqlParsed: { sql: string }
@@ -251,7 +271,7 @@ router.post('/query', async (req: Request, res: Response) => {
         }
 
         // ── INTERPRET ────────────────────────────────────────────────────────
-        const interpretResponse = await client.messages.create({
+        const interpretResponse = await withRetry(() => client.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
             system: INTERPRETER_PROMPT,
@@ -261,13 +281,13 @@ router.post('/query', async (req: Request, res: Response) => {
                     content: `Pregunta original: "${question}"\nResultado:\n${JSON.stringify(queryResult, null, 2)}`
                 }
             ]
-        })
+        }))
 
         let answer = interpretResponse.content[0].type === 'text' ? interpretResponse.content[0].text : 'Error de interpretación.'
         answer = answer.replace(/```sql[\s\S]*?```/gi, '').trim()
         answer = answer.replace(/```[\s\S]*?```/gi, '').trim()
 
-        // ── TRACK éxito — suma tokens de las 3 llamadas ──────────────────────
+        // ── TRACK éxito ──────────────────────────────────────────────────────
         const totalTokensIn =
             intentResponse.usage.input_tokens +
             sqlResponse.usage.input_tokens +
@@ -289,7 +309,6 @@ router.post('/query', async (req: Request, res: Response) => {
         res.json({ answer, sql, data: queryResult })
 
     } catch (error: any) {
-        // ── TRACK fallo ───────────────────────────────────────────────────────
         trackEvent('ai.query.failed', {
             error_type: error.type ?? 'unknown',
             error_message: error.message?.slice(0, 200),
