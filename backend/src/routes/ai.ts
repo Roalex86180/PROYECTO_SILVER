@@ -83,6 +83,15 @@ REGLAS:
   COUNT(DISTINCT campo) para evitar duplicados por JOINs múltiples
 - Cuando la pregunta pida múltiples conteos en una sola query, usa subconsultas 
   separadas en lugar de JOINs que puedan inflar los resultados
+- Cuando el usuario compare dos o más proyectos,
+  personas o empresas, la expandedQuestion SIEMPRE
+  debe pedir ambos en una sola consulta. 
+  Ejemplo:
+  Usuario: "¿Cuál fue más costoso, magenta o starbuck?"
+  expandedQuestion: "Obtener costo total (pagos + 
+  gastos operativos) de los proyectos magenta 
+  y starbuck en una sola consulta para compararlos"
+  NUNCA separes una comparación en dos preguntas
 
 Responde SOLO con JSON:
 {
@@ -102,7 +111,13 @@ REGLAS SQL:
 - SOLO genera SELECT, nunca INSERT/UPDATE/DELETE/DROP
 - La query SIEMPRE empieza con SELECT sin nada antes
 - NUNCA uses comentarios SQL (--)
-- Para nombres SIEMPRE usa ILIKE con %: WHERE p.name ILIKE '%texto%'
+- Para nombres SIEMPRE usa ILIKE dividiendo 
+  en palabras clave individuales:
+  Si el usuario dice "starbucks" busca:
+  WHERE p.name ILIKE '%star%' 
+  OR p.name ILIKE '%buck%'
+  Nunca busques la palabra completa exacta,
+  siempre divide en fragmentos de 4+ letras
 - Para COUNT: CAST(COUNT(*) AS INTEGER)
 - Para COUNT sin duplicados por JOINs: COUNT(DISTINCT alias.id)
 - Para montos: ROUND(valor::numeric, 2)
@@ -174,7 +189,14 @@ Responde de forma clara, amigable y concisa.
 - Para listas usa texto plano
 - Si el resultado está vacío, di "No hay datos registrados" y ofrece alternativas
 - NUNCA inventes datos que no estén en el resultado
-- NUNCA asumas que una fecha es incorrecta o está en el futuro`
+- NUNCA asumas que una fecha es incorrecta o está en el futuro
+- Cuando el resultado tenga 2 o más proyectos 
+  para comparar:
+  1. Identifica cuál tiene mayor costo total
+  2. Calcula la diferencia en monto y porcentaje
+  3. Explica en qué categoría está la diferencia
+     (pagos a workers, compañías, gastos operativos)
+  4. Resume en máximo 3 líneas claras`
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
