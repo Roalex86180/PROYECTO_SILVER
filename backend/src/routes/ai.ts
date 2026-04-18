@@ -26,7 +26,7 @@ async function withRetry<T>(
 
             if (!isOverloaded || isLast) throw err
 
-            const delay = baseDelayMs * 2 ** (attempt - 1) // 1s → 2s → 4s
+            const delay = baseDelayMs * 2 ** (attempt - 1)
             console.warn(`[AI] Overloaded, reintento ${attempt}/${maxAttempts} en ${delay}ms`)
             await new Promise(r => setTimeout(r, delay))
         }
@@ -34,16 +34,17 @@ async function withRetry<T>(
     throw new Error('Max retries reached')
 }
 
-// ─── Schema context (shared between prompts) ─────────────────────────────────
+// ─── Schema context ───────────────────────────────────────────────────────────
 
-const DB_SCHEMA = `
+// Esquema completo: solo para el generador de SQL
+const DB_SCHEMA_FULL = `
 Tablas disponibles en PostgreSQL:
 
 1. projects (id, name, location, status, description, client_contact, start_date, end_date, budget, created_at)
-   - status puede ser: 'active', 'completed', 'paused', 'archived'
+   - status: 'active', 'completed', 'paused', 'archived'
 2. contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
 3. payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
-   - Son los pagos a workers/companies por trabajo en proyectos
+   - Pagos a workers/companies por trabajo en proyectos
    - Para gastos de un proyecto: payments → contracts → projects
 4. workers (id, name, ssn, ein, phone, email, address, state, work_authorization, role, type, company_id, created_at)
    - Internos de Silver Star: company_id IS NULL
@@ -52,7 +53,6 @@ Tablas disponibles en PostgreSQL:
 6. expenses (id, description, amount, date, category, payment_method, notes, receipt_url, project_id, company_id, created_at)
    - Gastos OPERATIVOS de Silver Star (viajes, comidas, combustible, etc.)
    - NO son pagos a workers/companies
-   - Usar SOLO para gastos administrativos de Silver Star
 7. routes (id, name, project_id, created_at)
 8. locals (id, name, budget, location, address, zip_code, route_id, created_at)
 9. route_companies (route_id, company_id)
@@ -61,42 +61,28 @@ Tablas disponibles en PostgreSQL:
 12. local_companies (local_id, company_id)
 `
 
+// Esquema resumido: solo nombres de tablas para el intent resolver
+const DB_SCHEMA_SHORT = `
+Tablas: projects, contracts, payments, workers, companies, expenses, routes, locals,
+route_companies, route_workers, local_workers, local_companies
+`
+
 // ─── Step 0: Intent Resolver ──────────────────────────────────────────────────
 
 const INTENT_PROMPT = `Eres un analizador de intenciones para un asistente de datos empresariales.
+Analiza la pregunta del usuario (considerando el historial) y determina si es relevante para los datos de la empresa.
 
-Tu trabajo es analizar la pregunta del usuario (considerando el historial de conversación) 
-y determinar:
-1. Si es relevante para los datos de la empresa
-2. Reformular la pregunta de forma clara y específica para que sea consultable en SQL
-
-${DB_SCHEMA}
+${DB_SCHEMA_SHORT}
 
 REGLAS:
-- Si la pregunta es vaga o de seguimiento ("¿por qué?", "¿y en cheque?", "¿cuáles son?"),
-  expándela usando el contexto del historial para hacerla específica y consultable
-- Si la pregunta requiere comparación, incluye explícitamente qué comparar
-- Si la pregunta es sobre análisis ("¿por qué fue poco rentable?"), 
-  tradúcela a "obtener datos comparativos de todos los proyectos similares para analizar"
+- Si la pregunta es vaga o de seguimiento ("¿por qué?", "¿y en cheque?"), expándela usando el historial para hacerla específica y consultable
+- Si compara dos o más proyectos/personas/empresas, la expandedQuestion SIEMPRE debe pedir ambos en una sola consulta
 - Si no es relevante para los datos de la empresa, márcala como no relevante
-- Para contar elementos relacionados (rutas, locales, workers) SIEMPRE usa 
-  COUNT(DISTINCT campo) para evitar duplicados por JOINs múltiples
-- Cuando la pregunta pida múltiples conteos en una sola query, usa subconsultas 
-  separadas en lugar de JOINs que puedan inflar los resultados
-- Cuando el usuario compare dos o más proyectos,
-  personas o empresas, la expandedQuestion SIEMPRE
-  debe pedir ambos en una sola consulta. 
-  Ejemplo:
-  Usuario: "¿Cuál fue más costoso, magenta o starbuck?"
-  expandedQuestion: "Obtener costo total (pagos + 
-  gastos operativos) de los proyectos magenta 
-  y starbuck en una sola consulta para compararlos"
-  NUNCA separes una comparación en dos preguntas
 
 Responde SOLO con JSON:
 {
   "isRelevant": true,
-  "expandedQuestion": "pregunta reformulada específica y consultable (solo si isRelevant es true)",
+  "expandedQuestion": "pregunta reformulada específica (solo si isRelevant es true)",
   "notRelevantMessage": "mensaje amigable (solo si isRelevant es false)"
 }`
 
@@ -104,37 +90,30 @@ Responde SOLO con JSON:
 
 const SQL_PROMPT = `Eres un generador de SQL para PostgreSQL.
 
-${DB_SCHEMA}
+${DB_SCHEMA_FULL}
 
 REGLAS SQL:
-- El año actual es 2026. Las fechas de 2026 son válidas y deben consultarse normalmente.
+- El año actual es 2026. Las fechas de 2026 son válidas.
 - SOLO genera SELECT, nunca INSERT/UPDATE/DELETE/DROP
 - La query SIEMPRE empieza con SELECT sin nada antes
 - NUNCA uses comentarios SQL (--)
-- Para nombres SIEMPRE usa ILIKE dividiendo 
-  en palabras clave individuales:
-  Si el usuario dice "starbucks" busca:
-  WHERE p.name ILIKE '%star%' 
-  OR p.name ILIKE '%buck%'
-  Nunca busques la palabra completa exacta,
-  siempre divide en fragmentos de 4+ letras
+- Para nombres SIEMPRE usa ILIKE dividiendo en palabras clave individuales de 4+ letras:
+  "starbucks" → WHERE p.name ILIKE '%star%' OR p.name ILIKE '%buck%'
 - Para COUNT: CAST(COUNT(*) AS INTEGER)
 - Para COUNT sin duplicados por JOINs: COUNT(DISTINCT alias.id)
 - Para montos: ROUND(valor::numeric, 2)
 
-REGLA CRÍTICA PARA AGREGACIONES (ERROR 42803):
-- NUNCA uses funciones de agregación (SUM, COUNT, AVG, MAX, MIN) dentro de la cláusula WHERE.
-- Si necesitas filtrar por un valor calculado (ej. "pagos totales = 0" o "proyectos con más de 5 rutas"), debes usar GROUP BY y filtrar con HAVING.
+REGLA CRÍTICA — AGREGACIONES (ERROR 42803):
+- NUNCA uses SUM/COUNT/AVG/MAX/MIN dentro de WHERE
+- Filtra valores calculados con GROUP BY + HAVING
 
 FECHAS — reglas estrictas:
-- SIEMPRE castea las columnas de fecha a ::timestamp antes de operar sobre ellas
-- Para duración entre fechas:
-  EXTRACT(EPOCH FROM (COALESCE(p.end_date, NOW())::timestamp - p.start_date::timestamp))/86400 AS dias
-- Para filtrar por año: EXTRACT(YEAR FROM columna::timestamp) = 2024
-- Para filtrar por mes: EXTRACT(MONTH FROM columna::timestamp) = 6
-- Para fechas relativas: NOW() - INTERVAL 'X months' o 'X days' o 'X years'
-- Para fechas que pueden ser NULL: COALESCE(columna, NOW())::timestamp
-- NUNCA uses EXTRACT sobre un valor integer o sin ::timestamp explícito
+- SIEMPRE castea columnas de fecha a ::timestamp antes de operar
+- Duración: EXTRACT(EPOCH FROM (COALESCE(p.end_date, NOW())::timestamp - p.start_date::timestamp))/86400
+- Filtrar por año: EXTRACT(YEAR FROM columna::timestamp) = 2024
+- Filtrar por mes: EXTRACT(MONTH FROM columna::timestamp) = 6
+- Fechas relativas: NOW() - INTERVAL 'X months'
+- NUNCA uses EXTRACT sobre un valor sin ::timestamp explícito
 
 RENTABILIDAD DE PROYECTOS — usa siempre esta estructura:
   SELECT p.id, p.name, p.budget,
@@ -144,30 +123,17 @@ RENTABILIDAD DE PROYECTOS — usa siempre esta estructura:
   LEFT JOIN payments pay ON pay.contract_id = c.id
   GROUP BY p.id, p.name, p.budget
 
-CONTEOS CON MÚLTIPLES JOINS:
-- Cuando la pregunta pida contar rutas Y locales en la misma query, usa subconsultas:
-  SELECT 
+CONTEOS CON MÚLTIPLES JOINS — usa subconsultas, no JOINs directos:
+  SELECT
     (SELECT COUNT(*) FROM routes r WHERE r.project_id = p.id) AS total_rutas,
     (SELECT COUNT(*) FROM locals l JOIN routes r ON l.route_id = r.id WHERE r.project_id = p.id) AS total_locales
   FROM projects p WHERE p.name ILIKE '%nombre%'
-- NUNCA cuentes con JOINs directos cuando hay múltiples niveles — inflan los resultados
 
-ALIASES OBLIGATORIOS — usa SIEMPRE estos y solo estos:
-- projects → p
-- contracts → c
-- payments → pay
-- workers → w
-- companies → co
-- expenses → e
-- routes → r
-- locals → l
-- route_companies → rc
-- route_workers → rw
-- local_workers → lw
-- local_companies → lc
-
-NUNCA uses un alias que no hayas definido en el FROM o en un JOIN.
-Antes de escribir el WHERE, verifica que cada alias referenciado esté declarado.
+ALIASES OBLIGATORIOS:
+- projects → p | contracts → c | payments → pay | workers → w | companies → co
+- expenses → e | routes → r | locals → l | route_companies → rc | route_workers → rw
+- local_workers → lw | local_companies → lc
+- NUNCA uses un alias que no hayas definido en el FROM o en un JOIN
 
 Responde SOLO con JSON:
 {
@@ -177,26 +143,14 @@ Responde SOLO con JSON:
 // ─── Step 2: Interpreter ──────────────────────────────────────────────────────
 
 const INTERPRETER_PROMPT = `Eres un intérprete de resultados de base de datos para Silver Star Logistics.
+El año actual es 2026 — nunca asumas que una fecha de 2026 es incorrecta o futura.
 
-El año actual es 2026. Los datos de la empresa pueden incluir registros de 2026 —
-NUNCA asumas que 2026 está en el futuro ni sugieras que una fecha es incorrecta.
-
-Responde de forma clara, amigable y concisa.
-- Detecta el idioma de la pregunta original y responde en ese idioma
+Responde de forma clara, amigable y concisa en el idioma de la pregunta original.
 - NUNCA incluyas SQL en tu respuesta
-- USA tabla markdown SOLO si el usuario lo pidió explícitamente ("tabla", "tablita", "en tabla")
-- Para números simples responde directo
-- Para listas usa texto plano
+- USA tabla markdown SOLO si el usuario lo pidió explícitamente
 - Si el resultado está vacío, di "No hay datos registrados" y ofrece alternativas
 - NUNCA inventes datos que no estén en el resultado
-- NUNCA asumas que una fecha es incorrecta o está en el futuro
-- Cuando el resultado tenga 2 o más proyectos 
-  para comparar:
-  1. Identifica cuál tiene mayor costo total
-  2. Calcula la diferencia en monto y porcentaje
-  3. Explica en qué categoría está la diferencia
-     (pagos a workers, compañías, gastos operativos)
-  4. Resume en máximo 3 líneas claras`
+- Al comparar proyectos: indica cuál costó más, la diferencia en monto y porcentaje, y en qué categoría está la diferencia`
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
