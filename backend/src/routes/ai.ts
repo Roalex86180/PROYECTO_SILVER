@@ -167,7 +167,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         // ── INTENT ──────────────────────────────────────────────────────────
         const intentResponse = await withRetry(() => client.messages.create({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-6',
             max_tokens: 512,
             system: INTENT_PROMPT,
             messages: [
@@ -252,7 +252,7 @@ router.post('/query', async (req: Request, res: Response) => {
 
         // ── INTERPRET ────────────────────────────────────────────────────────
         const interpretResponse = await withRetry(() => client.messages.create({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-6',
             max_tokens: 1024,
             system: INTERPRETER_PROMPT,
             messages: [
