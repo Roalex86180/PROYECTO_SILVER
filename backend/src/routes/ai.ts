@@ -44,15 +44,15 @@ Tablas disponibles en PostgreSQL:
    - status: 'active', 'completed', 'paused', 'archived'
 2. contracts (id, worker_id, company_id, project_id, start_date, end_date, payment_type, value, created_at)
 3. payments (id, contract_id, concept, amount, date, method, notes, receipt_url, created_at)
-   - Pagos a workers/companies por trabajo en proyectos
-   - Para gastos de un proyecto: payments → contracts → projects
+   - Son los pagos que Silver Star PAGA a workers/companies = COSTOS/EGRESOS del proyecto
+   - Para costos de un proyecto: payments → contracts → projects
 4. workers (id, name, ssn, ein, phone, email, address, state, work_authorization, role, type, company_id, created_at)
    - Internos de Silver Star: company_id IS NULL
    - Externos (otras compañías): company_id IS NOT NULL
 5. companies (id, name, ein, contact_person, phone, email, address, state, notes, created_at)
 6. expenses (id, description, amount, date, category, payment_method, notes, receipt_url, project_id, company_id, created_at)
    - Gastos OPERATIVOS de Silver Star (viajes, comidas, combustible, etc.)
-   - NO son pagos a workers/companies
+   - También son COSTOS/EGRESOS, NO son ingresos
 7. routes (id, name, project_id, created_at)
 8. locals (id, name, budget, location, address, zip_code, route_id, created_at)
 9. route_companies (route_id, company_id)
@@ -115,13 +115,25 @@ FECHAS — reglas estrictas:
 - Fechas relativas: NOW() - INTERVAL 'X months'
 - NUNCA uses EXTRACT sobre un valor sin ::timestamp explícito
 
-RENTABILIDAD DE PROYECTOS — usa siempre esta estructura:
+RENTABILIDAD DE PROYECTOS — usa SIEMPRE esta estructura con subconsultas separadas:
   SELECT p.id, p.name, p.budget,
-    ROUND((p.budget - COALESCE(SUM(pay.amount), 0))::numeric, 2) AS rentabilidad
+    COALESCE((
+      SELECT SUM(pay.amount)
+      FROM contracts c
+      JOIN payments pay ON pay.contract_id = c.id
+      WHERE c.project_id = p.id
+    ), 0) AS total_pagos,
+    COALESCE((
+      SELECT SUM(e.amount)
+      FROM expenses e
+      WHERE e.project_id = p.id
+    ), 0) AS total_gastos_op,
+    ROUND((
+      p.budget
+      - COALESCE((SELECT SUM(pay.amount) FROM contracts c JOIN payments pay ON pay.contract_id = c.id WHERE c.project_id = p.id), 0)
+      - COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.project_id = p.id), 0)
+    )::numeric, 2) AS rentabilidad
   FROM projects p
-  LEFT JOIN contracts c ON c.project_id = p.id
-  LEFT JOIN payments pay ON pay.contract_id = c.id
-  GROUP BY p.id, p.name, p.budget
 
 CONTEOS CON MÚLTIPLES JOINS — usa subconsultas, no JOINs directos:
   SELECT
@@ -145,12 +157,20 @@ Responde SOLO con JSON:
 const INTERPRETER_PROMPT = `Eres un intérprete de resultados de base de datos para Silver Star Logistics.
 El año actual es 2026 — nunca asumas que una fecha de 2026 es incorrecta o futura.
 
+CONTEXTO DEL NEGOCIO — crítico para interpretar correctamente:
+- "payments" son pagos que Silver Star hace a workers/companies = COSTOS/EGRESOS, NUNCA ingresos
+- "expenses" son gastos operativos de Silver Star = también COSTOS/EGRESOS
+- "budget" es el presupuesto asignado al proyecto
+- "rentabilidad" = budget - total_pagos - total_gastos_op
+- NUNCA llames "ingresos" a los payments ni a los expenses — ambos son egresos
+
 Responde de forma clara, amigable y concisa en el idioma de la pregunta original.
 - NUNCA incluyas SQL en tu respuesta
 - USA tabla markdown SOLO si el usuario lo pidió explícitamente
 - Si el resultado está vacío, di "No hay datos registrados" y ofrece alternativas
 - NUNCA inventes datos que no estén en el resultado
-- Al comparar proyectos: indica cuál costó más, la diferencia en monto y porcentaje, y en qué categoría está la diferencia`
+- NUNCA asumas que una fecha es incorrecta o está en el futuro
+- Al comparar proyectos: indica cuál tuvo mayor rentabilidad, la diferencia en monto y porcentaje, y en qué categoría está la diferencia (pagos a workers/companies vs gastos operativos)`
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
